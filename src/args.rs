@@ -1,15 +1,9 @@
 use {
     crate::error::Error,
     anyhow::Result,
-    clap::{
-        Arg,
-        ArgAction,
-    },
+    clap::{Arg, ArgAction},
     itertools::Itertools,
-    std::{
-        fs,
-        str::FromStr,
-    },
+    std::{fs, str::FromStr},
 };
 
 #[derive(Debug, Eq, PartialEq)]
@@ -48,7 +42,8 @@ pub(crate) enum Command {
     Manual { path: String, format: ManualFormat },
     Autocomplete { path: String, shell: clap_complete::Shell },
     InteractiveSplit { secret_data: Vec<u8> },
-    RestoreSecret { shares: Vec<String> },
+    Split { secret_data: Vec<u8>, blueprint: Vec<u8> },
+    InteractiveRestoreSecret { shares: Vec<Vec<u8>> },
 }
 
 pub(crate) struct ClapArgumentLoader {}
@@ -91,26 +86,52 @@ impl ClapArgumentLoader {
                     ),
             )
             .subcommand(
-                clap::Command::new("split")
-                    .about("Split a secret (interactively).")
-                    .arg(
-                        clap::Arg::new("secret")
-                            .long("secret")
-                            .short('s')
-                            .help("Path to the file containing the secret.")
-                            .required(true),
+                clap::Command::new("interactive")
+                    .subcommand_required(true)
+                    .alias("int")
+                    .subcommand(
+                        clap::Command::new("split").about("Split a secret.").arg(
+                            clap::Arg::new("secret")
+                                .long("secret")
+                                .short('s')
+                                .help("Path to the file containing the secret.")
+                                .required(true),
+                        ),
+                    )
+                    .subcommand(
+                        clap::Command::new("restore")
+                            .about("Restores a secret from shares.")
+                            .arg(
+                                clap::Arg::new("share")
+                                    .long("share")
+                                    .short('s')
+                                    .help("Path to a share file.")
+                                    .required(true)
+                                    .action(ArgAction::Append),
+                            ),
                     ),
             )
             .subcommand(
-                clap::Command::new("restore")
-                    .about("Restores a secret from shares (interactively).")
-                    .arg(
-                        clap::Arg::new("share")
-                            .long("share")
-                            .short('s')
-                            .help("Path to a share file.")
-                            .required(true)
-                            .action(ArgAction::Append),
+                clap::Command::new("headless")
+                    .subcommand_required(true)
+                    .alias("hl")
+                    .subcommand(
+                        clap::Command::new("split")
+                            .about("Split a secret.")
+                            .arg(
+                                clap::Arg::new("secret")
+                                    .long("secret")
+                                    .short('s')
+                                    .help("Path to the file containing the secret.")
+                                    .required(true),
+                            )
+                            .arg(
+                                clap::Arg::new("blueprint")
+                                    .long("blueprint")
+                                    .short('b')
+                                    .help("Path to the blueprint file.")
+                                    .required(true),
+                            ),
                     ),
             )
     }
@@ -138,17 +159,30 @@ impl ClapArgumentLoader {
                 path: subc.get_one::<String>("out").unwrap().into(),
                 shell: clap_complete::Shell::from_str(subc.get_one::<String>("shell").unwrap().as_str()).unwrap(),
             }
-        } else if let Some(subc) = command.subcommand_matches("spliti") {
-            Command::InteractiveSplit {
-                secret_data: fs::read(subc.get_one::<String>("secret").unwrap())?,
+        } else if let Some(subc) = command.subcommand_matches("interactive") {
+            if let Some(subc) = subc.subcommand_matches("split") {
+                Command::InteractiveSplit {
+                    secret_data: fs::read(subc.get_one::<String>("secret").unwrap())?,
+                }
+            } else if let Some(subc) = subc.subcommand_matches("restore") {
+                Command::InteractiveRestoreSecret {
+                    shares: subc
+                        .get_many::<String>("share")
+                        .unwrap()
+                        .map(|v| fs::read(v).unwrap())
+                        .collect_vec(),
+                }
+            } else {
+                return Err(Error::UnknownCommand.into());
             }
-        } else if let Some(subc) = command.subcommand_matches("restore") {
-            Command::RestoreSecret {
-                shares: subc
-                    .get_many::<String>("share")
-                    .unwrap()
-                    .map(|v| fs::read_to_string(v).unwrap())
-                    .collect_vec(),
+        } else if let Some(subc) = command.subcommand_matches("headless") {
+            if let Some(subc) = subc.subcommand_matches("split") {
+                Command::Split {
+                    secret_data: fs::read(subc.get_one::<String>("secret").unwrap())?,
+                    blueprint: fs::read(subc.get_one::<String>("blueprint").unwrap())?,
+                }
+            } else {
+                return Err(Error::UnknownCommand.into());
             }
         } else {
             return Err(Error::UnknownCommand.into());
