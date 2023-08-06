@@ -6,19 +6,19 @@ pub(crate) struct Archive {
     /// This shares name.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
-    /// Some information about the secret.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub secret: Option<SecretInfo>,
     /// Some plain text comment.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
+    /// Some information about the secret.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub info: Option<SecretInfo>,
 
     /// The actual share of the secret.
-    pub payload: Payload,
+    pub share: Share,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub(crate) enum Payload {
+pub(crate) enum Share {
     PlainBase64(String),
     EncryptedBase64 { hash: Hash, data: String },
 }

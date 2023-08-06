@@ -9,7 +9,7 @@ use base64::Engine;
 use ssss::SsssConfig;
 
 use crate::{
-    archive::{Archive, Hash, Payload, SecretInfo},
+    archive::{Archive, Hash, SecretInfo, Share},
     error::Error,
 };
 
@@ -42,7 +42,7 @@ impl<'x> SSS<'x> {
                 version: "9f1e0683-7655-4f73-940a-38fa580b5725".to_owned(),
                 name: z.0.name.clone(),
                 comment: z.0.comment.clone(),
-                secret: if z.0.with_secret_info {
+                info: if z.0.with_secret_info {
                     Some(SecretInfo {
                         num_shares: blueprint.generate.len(),
                         threshold: blueprint.threshold,
@@ -50,7 +50,7 @@ impl<'x> SSS<'x> {
                 } else {
                     None
                 },
-                payload: match &z.0.password {
+                share: match &z.0.password {
                     | Some(pw) => {
                         let mut salt = [0u8; 32];
                         OsRng::default().fill_bytes(&mut salt);
@@ -64,15 +64,15 @@ impl<'x> SSS<'x> {
                             .serialize()
                             .to_string();
 
-                        Payload::EncryptedBase64 {
+                        Share::EncryptedBase64 {
                             data: base64::engine::general_purpose::STANDARD
                                 .encode(simplecrypt::encrypt(z.1.as_bytes(), pw.as_bytes())),
                             hash: Hash::Argon2id(hash),
                         }
                     },
                     | None => {
-                        let encoded_payload = base64::engine::general_purpose::STANDARD.encode(z.1);
-                        Payload::PlainBase64(encoded_payload)
+                        let encoded_share = base64::engine::general_purpose::STANDARD.encode(z.1);
+                        Share::PlainBase64(encoded_share)
                     },
                 },
             };
@@ -91,9 +91,9 @@ impl<'x> SSS<'x> {
                 base64::engine::general_purpose::STANDARD.decode(s)?,
             )?)?;
 
-            let data = match archive.payload {
-                | Payload::PlainBase64(v) => base64::engine::general_purpose::STANDARD.decode(v)?,
-                | Payload::EncryptedBase64 { hash, data } => {
+            let data = match archive.share {
+                | Share::PlainBase64(v) => base64::engine::general_purpose::STANDARD.decode(v)?,
+                | Share::EncryptedBase64 { hash, data } => {
                     let pw: String = dialoguer::Password::new()
                         .with_prompt(format!(
                             "Enter password for share (name: {})",

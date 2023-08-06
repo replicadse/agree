@@ -101,7 +101,7 @@ async fn ask_for_share_data() -> Result<ShareGenInfo> {
     };
 
     let with_encryption = dialoguer::Confirm::new()
-        .with_prompt("Encrypt payload with password?")
+        .with_prompt("Encrypt share data with password?")
         .interact()?;
     let password: Option<String> = if with_encryption {
         Some(dialoguer::Password::new().with_prompt("Enter password").interact()?)
