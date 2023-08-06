@@ -76,22 +76,25 @@ async fn main() -> Result<()> {
 }
 
 async fn ask_for_share_data() -> Result<ShareGenInfo> {
-    let name: String = dialoguer::Input::new().with_prompt("Name").interact()?;
-    let path: String = dialoguer::Input::new()
-        .with_prompt("Save to file")
-        .with_initial_text(&name)
-        .interact()?;
+    let path: String = dialoguer::Input::new().with_prompt("Save to file").interact()?;
+
     let with_name = dialoguer::Confirm::new()
         .with_prompt("Include name in share?")
         .interact()?;
+    let name: Option<String> = if with_name {
+        Some(dialoguer::Input::new().with_prompt("Name").interact()?)
+    } else {
+        None
+    };
+
     let with_secret_info = dialoguer::Confirm::new()
         .with_prompt("Include secret info (num shares / threshold) in share?")
         .interact()?;
 
-    let add_comment = dialoguer::Confirm::new()
+    let with_comment = dialoguer::Confirm::new()
         .with_prompt("Add comment to share?")
         .interact()?;
-    let with_comment: Option<String> = if add_comment {
+    let comment: Option<String> = if with_comment {
         Some(dialoguer::Input::new().with_prompt("Comment").interact()?)
     } else {
         None
@@ -110,8 +113,7 @@ async fn ask_for_share_data() -> Result<ShareGenInfo> {
         name,
         path,
         password,
-        with_name,
         with_secret_info,
-        with_comment,
+        comment,
     })
 }

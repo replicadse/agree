@@ -40,8 +40,8 @@ impl<'x> SSS<'x> {
         for z in blueprint.generate.iter().zip(shares) {
             let share_data = Archive {
                 version: "9f1e0683-7655-4f73-940a-38fa580b5725".to_owned(),
-                name: if z.0.with_name { Some(z.0.name.clone()) } else { None },
-                comment: z.0.with_comment.clone(),
+                name: z.0.name.clone(),
+                comment: z.0.comment.clone(),
                 secret: if z.0.with_secret_info {
                     Some(SecretInfo {
                         num_shares: blueprint.generate.len(),
@@ -126,10 +126,9 @@ pub(crate) struct ShareGenBlueprint {
 }
 #[derive(Debug, serde::Deserialize)]
 pub(crate) struct ShareGenInfo {
-    pub name: String,
     pub path: String,
+    pub name: Option<String>,
     pub password: Option<String>,
-    pub with_name: bool,
     pub with_secret_info: bool,
-    pub with_comment: Option<String>,
+    pub comment: Option<String>,
 }
