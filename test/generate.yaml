@@ -1,0 +1,12 @@
+threshold: 2
+generate:
+  - path: ./test/alice
+    name: alice
+    password: boosker
+    info: true
+    comment: boosker
+  - path: ./test/bob
+    name: bob
+    password: boosker
+    info: true
+    comment: boosker

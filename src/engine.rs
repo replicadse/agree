@@ -42,7 +42,7 @@ impl<'x> SSS<'x> {
                 version: "9f1e0683-7655-4f73-940a-38fa580b5725".to_owned(),
                 name: z.0.name.clone(),
                 comment: z.0.comment.clone(),
-                info: if z.0.with_secret_info {
+                info: if z.0.info {
                     Some(SecretInfo {
                         num_shares: blueprint.generate.len(),
                         threshold: blueprint.threshold,
@@ -129,6 +129,6 @@ pub(crate) struct ShareGenInfo {
     pub path: String,
     pub name: Option<String>,
     pub password: Option<String>,
-    pub with_secret_info: bool,
     pub comment: Option<String>,
+    pub info: bool,
 }

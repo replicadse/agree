@@ -13,6 +13,7 @@ pub(crate) mod engine;
 pub(crate) mod error;
 pub(crate) mod reference;
 
+#[forbid(unsafe_code)]
 #[tokio::main]
 async fn main() -> Result<()> {
     let cmd = ClapArgumentLoader::load()?;
@@ -113,7 +114,7 @@ async fn ask_for_share_data() -> Result<ShareGenInfo> {
         name,
         path,
         password,
-        with_secret_info,
+        info: with_secret_info,
         comment,
     })
 }
