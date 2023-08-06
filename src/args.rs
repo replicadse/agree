@@ -1,8 +1,15 @@
 use {
     crate::error::Error,
     anyhow::Result,
-    clap::Arg,
-    std::str::FromStr,
+    clap::{
+        Arg,
+        ArgAction,
+    },
+    itertools::Itertools,
+    std::{
+        fs,
+        str::FromStr,
+    },
 };
 
 #[derive(Debug, Eq, PartialEq)]
@@ -40,6 +47,8 @@ pub(crate) enum ManualFormat {
 pub(crate) enum Command {
     Manual { path: String, format: ManualFormat },
     Autocomplete { path: String, shell: clap_complete::Shell },
+    InteractiveSplit { secret_data: Vec<u8> },
+    RestoreSecret { shares: Vec<String> },
 }
 
 pub(crate) struct ClapArgumentLoader {}
@@ -81,6 +90,29 @@ impl ClapArgumentLoader {
                             .required(true),
                     ),
             )
+            .subcommand(
+                clap::Command::new("split")
+                    .about("Split a secret (interactively).")
+                    .arg(
+                        clap::Arg::new("secret")
+                            .long("secret")
+                            .short('s')
+                            .help("Path to the file containing the secret.")
+                            .required(true),
+                    ),
+            )
+            .subcommand(
+                clap::Command::new("restore")
+                    .about("Restores a secret from shares (interactively).")
+                    .arg(
+                        clap::Arg::new("share")
+                            .long("share")
+                            .short('s')
+                            .help("Path to a share file.")
+                            .required(true)
+                            .action(ArgAction::Append),
+                    ),
+            )
     }
 
     pub(crate) fn load() -> Result<CallArgs> {
@@ -105,6 +137,18 @@ impl ClapArgumentLoader {
             Command::Autocomplete {
                 path: subc.get_one::<String>("out").unwrap().into(),
                 shell: clap_complete::Shell::from_str(subc.get_one::<String>("shell").unwrap().as_str()).unwrap(),
+            }
+        } else if let Some(subc) = command.subcommand_matches("spliti") {
+            Command::InteractiveSplit {
+                secret_data: fs::read(subc.get_one::<String>("secret").unwrap())?,
+            }
+        } else if let Some(subc) = command.subcommand_matches("restore") {
+            Command::RestoreSecret {
+                shares: subc
+                    .get_many::<String>("share")
+                    .unwrap()
+                    .map(|v| fs::read_to_string(v).unwrap())
+                    .collect_vec(),
             }
         } else {
             return Err(Error::UnknownCommand.into());

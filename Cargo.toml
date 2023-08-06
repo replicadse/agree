@@ -27,6 +27,11 @@ bytes = "1.4.0"
 itertools = "0.11.0"
 anyhow = "1.0.72"
 thiserror = "1.0.44"
+base64 = "0.21.2"
+ssss = "0.2.0"
+dialoguer = "0.10.4"
+argon2 = "0.5.1"
+simplecrypt = "1.0.2"
 
 [dev-dependencies]
 rusty-hook = "0.11.2"
