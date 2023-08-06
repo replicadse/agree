@@ -1,9 +1,15 @@
 use {
     crate::error::Error,
     anyhow::Result,
-    clap::{Arg, ArgAction},
+    clap::{
+        Arg,
+        ArgAction,
+    },
     itertools::Itertools,
-    std::{fs, str::FromStr},
+    std::{
+        fs,
+        str::FromStr,
+    },
 };
 
 #[derive(Debug, Eq, PartialEq)]

@@ -1,16 +1,25 @@
-use std::fs;
-
-use anyhow::Result;
-use argon2::{
-    password_hash::rand_core::{OsRng, RngCore},
-    PasswordHasher, PasswordVerifier,
-};
-use base64::Engine;
-use ssss::SsssConfig;
-
-use crate::{
-    archive::{Archive, Hash, SecretInfo, Share},
-    error::Error,
+use {
+    crate::{
+        archive::{
+            Archive,
+            Hash,
+            SecretInfo,
+            Share,
+        },
+        error::Error,
+    },
+    anyhow::Result,
+    argon2::{
+        password_hash::rand_core::{
+            OsRng,
+            RngCore,
+        },
+        PasswordHasher,
+        PasswordVerifier,
+    },
+    base64::Engine,
+    ssss::SsssConfig,
+    std::fs,
 };
 
 pub(crate) struct SSS<'x> {

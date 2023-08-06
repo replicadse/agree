@@ -1,10 +1,19 @@
-use crate::engine::{ShareGenBlueprint, SSS};
-
 use {
+    crate::engine::{
+        ShareGenBlueprint,
+        SSS,
+    },
     anyhow::Result,
-    args::{ClapArgumentLoader, Command, ManualFormat},
+    args::{
+        ClapArgumentLoader,
+        Command,
+        ManualFormat,
+    },
     engine::ShareGenInfo,
-    std::{io::Write, path::PathBuf},
+    std::{
+        io::Write,
+        path::PathBuf,
+    },
 };
 
 pub(crate) mod archive;
