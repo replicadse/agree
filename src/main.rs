@@ -78,7 +78,7 @@ async fn main() -> Result<()> {
         },
         | Command::InteractiveRestoreSecret { shares } => {
             let engine = SSS::new();
-            let secret = engine.restore(shares).await?;
+            let secret = engine.restore(&shares).await?;
             std::io::stdout().write_all(&secret)?;
             Ok(())
         },

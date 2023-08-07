@@ -93,7 +93,7 @@ impl<'x> SSS<'x> {
         Ok(())
     }
 
-    pub async fn restore(&self, shares: Vec<Vec<u8>>) -> Result<Vec<u8>> {
+    pub async fn restore(&self, shares: &Vec<Vec<u8>>) -> Result<Vec<u8>> {
         let mut share_data = Vec::<String>::new();
         for s in shares {
             let archive = serde_yaml::from_str::<Archive>(&String::from_utf8(
