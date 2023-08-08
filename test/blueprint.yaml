@@ -3,9 +3,9 @@ generate:
   - path: ./test/alice.share
   - path: ./test/bob.share
     name: bob
-    encrypt: !plain boosker1
+    encrypt: !plain example-bob
     info: true
     comment: boosker
   - path: ./test/charlie.share
     name: charlie
-    encrypt: !shell printf boosker1
+    encrypt: !shell printf example-charlie

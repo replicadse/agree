@@ -1,7 +1,16 @@
+use anyhow::Result;
+
 pub const VERSION_ID_LEN: usize = 36;
 pub const VERSION_0_1: &'static str = "9f1e0683-7655-4f73-940a-38fa580b5725";
 
-pub mod v1 {
+pub fn split_version_and_data(data: &Vec<u8>) -> Result<(String, &[u8])> {
+    Ok((
+        String::from_utf8(data[0..VERSION_ID_LEN].to_vec())?,
+        &data[VERSION_ID_LEN..],
+    ))
+}
+
+pub(crate) mod v1 {
     /// The archive that describes the single file storaing all information.
     #[derive(Debug, serde::Serialize, serde::Deserialize)]
     pub(crate) struct Archive {
