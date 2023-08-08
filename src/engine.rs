@@ -5,7 +5,10 @@ use {
             Hash,
             SecretInfo,
             Share,
+            VERSION_0_1_0,
+            VERSION_ID_LEN,
         },
+        blueprint::Blueprint,
         error::Error,
     },
     anyhow::Result,
@@ -17,12 +20,12 @@ use {
         PasswordHasher,
         PasswordVerifier,
     },
-    base64::Engine,
-    ssss::SsssConfig,
-    std::{
-        fs,
-        process::Stdio,
+    base64::{
+        engine::general_purpose::STANDARD,
+        Engine,
     },
+    ssss::SsssConfig,
+    std::fs,
     uuid::Uuid,
 };
 
@@ -52,7 +55,7 @@ impl<'x> SSS<'x> {
 
         for z in blueprint.generate.iter().zip(shares) {
             let share_data = Archive {
-                version: "9f1e0683-7655-4f73-940a-38fa580b5725".to_owned(),
+                version: VERSION_0_1_0.to_owned(),
                 uid: Uuid::new_v4().hyphenated().to_string(),
                 name: z.0.name.clone(),
                 comment: z.0.comment.clone(),
@@ -80,20 +83,19 @@ impl<'x> SSS<'x> {
                             .to_string();
 
                         Share::EncryptedBase64 {
-                            data: base64::engine::general_purpose::STANDARD
-                                .encode(simplecrypt::encrypt(z.1.as_bytes(), pass.as_bytes())),
+                            data: STANDARD.encode(simplecrypt::encrypt(z.1.as_bytes(), pass.as_bytes())),
                             hash: Hash::Argon2id(hash),
                         }
                     },
                     | None => {
-                        let encoded_share = base64::engine::general_purpose::STANDARD.encode(z.1);
+                        let encoded_share = STANDARD.encode(z.1);
                         Share::PlainBase64(encoded_share)
                     },
                 },
             };
-            let share_data_str = base64::engine::general_purpose::STANDARD.encode(serde_yaml::to_string(&share_data)?);
+            let share_data_str = STANDARD.encode(serde_yaml::to_string(&share_data)?);
 
-            fs::write(&z.0.path, share_data_str)?;
+            fs::write(&z.0.path, format!("{}{}", VERSION_0_1_0, share_data_str))?;
         }
         Ok(())
     }
@@ -101,86 +103,39 @@ impl<'x> SSS<'x> {
     pub async fn restore(&self, shares: &Vec<(String, Vec<u8>)>) -> Result<Vec<u8>> {
         let mut share_data = Vec::<String>::new();
         for s in shares {
-            let archive = serde_yaml::from_str::<Archive>(&String::from_utf8(
-                base64::engine::general_purpose::STANDARD.decode(&s.1)?,
-            )?)?;
-
-            let data = match archive.share {
-                | Share::PlainBase64(v) => base64::engine::general_purpose::STANDARD.decode(v)?,
-                | Share::EncryptedBase64 { hash, data } => {
-                    let pw: String = dialoguer::Password::new()
-                        .with_prompt(format!(
-                            "Enter password for share (path: {}, name: {})",
-                            &s.0,
-                            archive.name.unwrap_or("{unknown}".to_owned())
-                        ))
-                        .interact()?;
-                    match hash {
-                        | Hash::Argon2id(v) => {
-                            let pw_hash = argon2::PasswordHash::new(&v).or(Err(Error::PasswordVerification))?;
-                            self.argon
-                                .verify_password(pw.as_bytes(), &pw_hash)
-                                .or(Err(Error::PasswordVerification))?;
+            let version = String::from_utf8(s.1[0..VERSION_ID_LEN].to_vec())?;
+            let data = &s.1[VERSION_ID_LEN..];
+            match version.as_str() {
+                | VERSION_0_1_0 => {
+                    let archive = serde_yaml::from_str::<Archive>(&String::from_utf8(STANDARD.decode(&data)?)?)?;
+                    let data = match archive.share {
+                        | Share::PlainBase64(v) => STANDARD.decode(v)?,
+                        | Share::EncryptedBase64 { hash, data } => {
+                            let pw: String = dialoguer::Password::new()
+                                .with_prompt(format!(
+                                    "Enter password for share (path: {}, name: {})",
+                                    &s.0,
+                                    archive.name.unwrap_or("{unknown}".to_owned())
+                                ))
+                                .interact()?;
+                            match hash {
+                                | Hash::Argon2id(v) => {
+                                    let pw_hash = argon2::PasswordHash::new(&v).or(Err(Error::PasswordVerification))?;
+                                    self.argon
+                                        .verify_password(pw.as_bytes(), &pw_hash)
+                                        .or(Err(Error::PasswordVerification))?;
+                                },
+                            }
+                            let data_dec = STANDARD.decode(data)?;
+                            simplecrypt::decrypt(data_dec.as_slice(), pw.as_bytes())?
                         },
-                    }
-                    let data_dec = base64::engine::general_purpose::STANDARD.decode(data)?;
-                    simplecrypt::decrypt(data_dec.as_slice(), pw.as_bytes())?
+                    };
+                    share_data.push(String::from_utf8(data)?);
                 },
-            };
-            share_data.push(String::from_utf8(data)?);
+                | v => Err(Error::UnknownVersion(v.to_owned()))?,
+            }
         }
 
         Ok(ssss::unlock(share_data.as_slice())?)
-    }
-}
-
-#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub(crate) struct Blueprint {
-    pub threshold: usize,
-    pub generate: Vec<BlueprintShare>,
-}
-
-#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub(crate) struct BlueprintShare {
-    pub path: String,
-    pub name: Option<String>,
-    pub encrypt: Option<BlueprintShareEncryption>,
-    pub comment: Option<String>,
-    pub info: Option<bool>,
-}
-
-#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum BlueprintShareEncryption {
-    Plain(String),
-    Shell(String),
-}
-
-impl BlueprintShareEncryption {
-    pub fn exec(&self, trust: bool) -> Result<String> {
-        match self {
-            | BlueprintShareEncryption::Plain(pw) => Ok::<String, anyhow::Error>(pw.clone()),
-            | BlueprintShareEncryption::Shell(pw) => {
-                if !trust {
-                    return Err(Error::NoTrust.into());
-                }
-
-                let mut cmd_proc = std::process::Command::new("sh");
-                cmd_proc.arg("-c");
-                cmd_proc.arg(pw);
-
-                cmd_proc.stdin(Stdio::null());
-                cmd_proc.stderr(Stdio::null());
-                cmd_proc.stdout(Stdio::piped());
-                let output = cmd_proc.spawn()?.wait_with_output()?;
-
-                match output.status.code().unwrap() {
-                    | 0 => Ok(String::from_utf8(output.stdout)?),
-                    | _ => Err(Error::PasswordProvider.into()),
-                }
-            },
-        }
     }
 }

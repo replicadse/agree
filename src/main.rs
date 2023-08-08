@@ -1,7 +1,7 @@
 use {
-    crate::engine::{
-        Blueprint,
-        SSS,
+    crate::{
+        blueprint::Blueprint,
+        engine::SSS,
     },
     anyhow::Result,
     args::{
@@ -9,7 +9,7 @@ use {
         Command,
         ManualFormat,
     },
-    engine::{
+    blueprint::{
         BlueprintShare,
         BlueprintShareEncryption,
     },
@@ -21,6 +21,7 @@ use {
 
 pub(crate) mod archive;
 pub(crate) mod args;
+pub(crate) mod blueprint;
 pub(crate) mod engine;
 pub(crate) mod error;
 pub(crate) mod reference;
