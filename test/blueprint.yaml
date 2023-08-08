@@ -1,8 +1,11 @@
 threshold: 2
 generate:
-  - path: ./test/alice
-  - path: ./test/bob
+  - path: ./test/alice.share
+  - path: ./test/bob.share
     name: bob
     encrypt: !plain boosker1
     info: true
     comment: boosker
+  - path: ./test/charlie.share
+    name: charlie
+    encrypt: !shell printf boosker1
