@@ -9,7 +9,7 @@
 
 ## Example
 
-### Split a secret into _n_ shares
+### Split a secret into _n_ shares (interactive)
 
 To split a secret (file) into shares, execute one of the following examples.:
 
@@ -20,11 +20,34 @@ To split a secret (file) into shares, execute one of the following examples.:
 
 This command is interactive and asks the user to provide data like s  hare name, file path and optional password to encrypt the share data.
 
-### Restore a secret from _n_ shares
+### Restore a secret from _n_ shares (interactive)
 
 In the following example, the secret was split into 2 shares. We need to provide exactly two shares in order to restore the secret and write it to `STDOUT`.\
 This command is interactive as it might prompt for the password of the share if it's share dataa is encrypted.
 
 ```
 agree interactive restore -s ./share1.file -s ./share2.file
+```
+
+### Split a secret into _n_ shares (via blueprint)
+
+The example below will split the secret into three shares with a restore threshold of two. Assuming the file is called `blueprint.yaml`, we can use the following command:
+
+```bash
+agree headless split -s `Cargo.toml` -b `blueprint.yaml`
+```
+
+```yaml:blueprint.yaml
+threshold: 2
+generate:
+  - path: ./test/alice.share
+  - path: ./test/bob.share
+    name: bob
+    encrypt: !plain example-bob
+    info: true
+    comment: boosker
+  - path: ./test/charlie.share
+    name: charlie
+    encrypt: !shell printf example-charlie
+
 ```
