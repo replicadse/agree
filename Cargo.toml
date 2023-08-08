@@ -21,7 +21,7 @@ clap = "4.3.19"
 clap_complete = "4.3.2"
 clap_mangen = "0.2.12"
 clap-markdown = "0.1.3"
-serde = { version = "1.0.179", features = ["derive"] }
+serde = { version = "1.0.183", features = ["derive"] }
 serde_yaml = "0.9.25"
 bytes = "1.4.0"
 itertools = "0.11.0"
