@@ -13,6 +13,7 @@ pub fn split_version_and_data(data: &Vec<u8>) -> Result<(String, &[u8])> {
 pub(crate) mod v1 {
     /// The archive that describes the single file storaing all information.
     #[derive(Debug, serde::Serialize, serde::Deserialize)]
+    #[serde(rename_all = "snake_case", deny_unknown_fields)]
     pub(crate) struct Archive {
         /// Automatically generated unique ID of this archive.
         pub uid: String,
@@ -32,6 +33,7 @@ pub(crate) mod v1 {
 
     // Describing an individual share.
     #[derive(Debug, serde::Serialize, serde::Deserialize)]
+    #[serde(rename_all = "snake_case", deny_unknown_fields)]
     pub(crate) enum Share {
         /// Plain base64 encoded share data.
         PlainBase64(String),
@@ -42,6 +44,7 @@ pub(crate) mod v1 {
     /// Describes the hash algorithm and value that is used for password
     /// verification.
     #[derive(Debug, serde::Serialize, serde::Deserialize)]
+    #[serde(rename_all = "snake_case", deny_unknown_fields)]
     pub(crate) enum Hash {
         /// Argon2id hash.
         Argon2id(String),
@@ -50,6 +53,7 @@ pub(crate) mod v1 {
     /// Describes the secret that has been sharded. Contains information about
     /// how to restore.
     #[derive(Debug, serde::Serialize, serde::Deserialize)]
+    #[serde(rename_all = "snake_case", deny_unknown_fields)]
     pub(crate) struct SecretInfo {
         /// The amount of shares that were generated for the secret.
         pub num_shares: usize,

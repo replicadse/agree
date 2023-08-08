@@ -12,7 +12,7 @@ pub(crate) struct Blueprint {
 }
 
 #[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub(crate) struct BlueprintShare {
     pub path: String,
     pub name: Option<String>,
@@ -22,7 +22,7 @@ pub(crate) struct BlueprintShare {
 }
 
 #[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub(crate) enum BlueprintShareEncryption {
     Plain(String),
     Shell(String),
