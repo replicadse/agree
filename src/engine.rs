@@ -1,9 +1,14 @@
-pub(crate) mod v1 {
+pub(crate) mod v0_1 {
     use {
         crate::{
             archive,
             archive::{
-                v1,
+                v0_1::{
+                    Archive,
+                    Hash,
+                    SecretInfo,
+                    Share,
+                },
                 VERSION_0_1,
             },
             blueprint::Blueprint,
@@ -52,12 +57,12 @@ pub(crate) mod v1 {
             )?;
 
             for z in blueprint.generate.iter().zip(shares) {
-                let share_data = v1::Archive {
+                let share_data = Archive {
                     uid: Uuid::new_v4().hyphenated().to_string(),
                     name: z.0.name.clone(),
                     comment: z.0.comment.clone(),
                     info: if z.0.info.unwrap_or(false) {
-                        Some(v1::SecretInfo {
+                        Some(SecretInfo {
                             num_shares: blueprint.generate.len(),
                             threshold: blueprint.threshold,
                         })
@@ -79,14 +84,14 @@ pub(crate) mod v1 {
                                 .serialize()
                                 .to_string();
 
-                            v1::Share::EncryptedBase64 {
+                            Share::EncryptedBase64 {
                                 data: STANDARD.encode(simplecrypt::encrypt(z.1.as_bytes(), pass.as_bytes())),
-                                hash: v1::Hash::Argon2id(hash),
+                                hash: Hash::Argon2id(hash),
                             }
                         },
                         | None => {
                             let encoded_share = STANDARD.encode(z.1);
-                            v1::Share::PlainBase64(encoded_share)
+                            Share::PlainBase64(encoded_share)
                         },
                     },
                 };
@@ -103,12 +108,11 @@ pub(crate) mod v1 {
                 let version_data = archive::split_version_and_data(&s.1)?;
                 match version_data.0.as_str() {
                     | VERSION_0_1 => {
-                        let archive = serde_yaml::from_str::<v1::Archive>(&String::from_utf8(
-                            STANDARD.decode(&version_data.1)?,
-                        )?)?;
+                        let archive =
+                            serde_yaml::from_str::<Archive>(&String::from_utf8(STANDARD.decode(&version_data.1)?)?)?;
                         let data = match archive.share {
-                            | v1::Share::PlainBase64(v) => STANDARD.decode(v)?,
-                            | v1::Share::EncryptedBase64 { hash, data } => {
+                            | Share::PlainBase64(v) => STANDARD.decode(v)?,
+                            | Share::EncryptedBase64 { hash, data } => {
                                 let pw: String = dialoguer::Password::new()
                                     .with_prompt(format!(
                                         "Enter password for share (path: {}, name: {})",
@@ -117,7 +121,7 @@ pub(crate) mod v1 {
                                     ))
                                     .interact()?;
                                 match hash {
-                                    | v1::Hash::Argon2id(v) => {
+                                    | Hash::Argon2id(v) => {
                                         let pw_hash =
                                             argon2::PasswordHash::new(&v).or(Err(Error::PasswordVerification))?;
                                         self.argon

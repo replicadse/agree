@@ -73,7 +73,7 @@ impl ClapArgumentLoader {
         clap::Command::new("agree")
             .version(env!("CARGO_PKG_VERSION"))
             .about("A makefile alternative / task runner.")
-            .author("replicadse <aw@voidpointergroup.com>")
+            .author("Alexander Weber <alexanderh.weber@outlook.com>")
             .propagate_version(true)
             .subcommand_required(true)
             .args([Arg::new("experimental")

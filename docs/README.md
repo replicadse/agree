@@ -5,7 +5,8 @@
 
 ## Project state
 
-`agree` is **unstable**.
+`agree` is **unstable**.\
+Version semantics: `^([0-9]+\.[0-9]+\.[0-9]+)(-(alpha|beta)\.[0-9]+)?$`.
 
 ## Example
 
@@ -37,7 +38,7 @@ The example below will split the secret into three shares with a restore thresho
 agree headless split -s `Cargo.toml` -b `blueprint.yaml`
 ```
 
-```yaml:blueprint.yaml
+```yaml
 threshold: 2
 generate:
   - path: ./test/alice.share
@@ -45,9 +46,35 @@ generate:
     name: bob
     encrypt: !plain example-bob
     info: true
-    comment: boosker
+    comment: example for bob
   - path: ./test/charlie.share
     name: charlie
     encrypt: !shell printf example-charlie
 
 ```
+
+## Share composition
+
+In all version, bytes `[0..36)` are reserved for the version ID of the archive.\
+In the following schematics, only the data from index `[36..]` is used and shifted left to index `0` for convenience.
+
+```
+1f2c6a6d-f711-4378-97b9-5f9e2f9f4271kldmf209fm0f944fwef98syf23f9h2fneuf2efhux...
+^     --  -- VERSION ID --  --     ^ DATA =>
+```
+
+### v0.1
+
+`v0.1` is a yaml base64 encoded YAML file. The share information can be store either in plain text or can be protected with a password. The share data is always base64 encoded when stored in the YAML field.\
+If encrypted with a password, a symmetric encryption algorithm with the following attributes is used (from the crate `simplecrypt v 1.0.2`):
+
+```
+/// |index  |usage|
+/// |-------|-----|
+/// |0 - 15 |salt |
+/// |16 - 39|nonce|
+/// |40 - 55|mac  |
+/// |56 -   |data |
+```
+
+The password to the data is hashed via `argon2`. The hashed password is stored alongside the encrypted data to easily identify wrong passwords when the data is decrypted.

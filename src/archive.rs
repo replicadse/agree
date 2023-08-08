@@ -10,7 +10,7 @@ pub fn split_version_and_data(data: &Vec<u8>) -> Result<(String, &[u8])> {
     ))
 }
 
-pub(crate) mod v1 {
+pub(crate) mod v0_1 {
     /// The archive that describes the single file storaing all information.
     #[derive(Debug, serde::Serialize, serde::Deserialize)]
     #[serde(rename_all = "snake_case", deny_unknown_fields)]
