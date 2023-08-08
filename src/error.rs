@@ -6,4 +6,8 @@ pub(crate) enum Error {
     UnknownCommand,
     #[error("password verification")]
     PasswordVerification,
+    #[error("password provider")]
+    PasswordProvider,
+    #[error("no trust")]
+    NoTrust,
 }

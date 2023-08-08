@@ -45,11 +45,25 @@ pub(crate) enum ManualFormat {
 
 #[derive(Debug)]
 pub(crate) enum Command {
-    Manual { path: String, format: ManualFormat },
-    Autocomplete { path: String, shell: clap_complete::Shell },
-    InteractiveSplit { secret_data: Vec<u8> },
-    Split { secret_data: Vec<u8>, blueprint: Vec<u8> },
-    InteractiveRestoreSecret { shares: Vec<Vec<u8>> },
+    Manual {
+        path: String,
+        format: ManualFormat,
+    },
+    Autocomplete {
+        path: String,
+        shell: clap_complete::Shell,
+    },
+    InteractiveSplit {
+        secret_data: Vec<u8>,
+    },
+    Split {
+        secret_data: Vec<u8>,
+        blueprint: Vec<u8>,
+        trust: bool,
+    },
+    InteractiveRestoreSecret {
+        shares: Vec<(String, Vec<u8>)>,
+    },
 }
 
 pub(crate) struct ClapArgumentLoader {}
@@ -137,6 +151,13 @@ impl ClapArgumentLoader {
                                     .short('b')
                                     .help("Path to the blueprint file.")
                                     .required(true),
+                            )
+                            .arg(
+                                clap::Arg::new("trust")
+                                    .long("trust")
+                                    .short('t')
+                                    .help("Allow shell invocations from blueprint scripts.")
+                                    .num_args(0),
                             ),
                     ),
             )
@@ -175,7 +196,7 @@ impl ClapArgumentLoader {
                     shares: subc
                         .get_many::<String>("share")
                         .unwrap()
-                        .map(|v| fs::read(v).unwrap())
+                        .map(|v| (v.clone(), fs::read(v).unwrap()))
                         .collect_vec(),
                 }
             } else {
@@ -186,6 +207,7 @@ impl ClapArgumentLoader {
                 Command::Split {
                     secret_data: fs::read(subc.get_one::<String>("secret").unwrap())?,
                     blueprint: fs::read(subc.get_one::<String>("blueprint").unwrap())?,
+                    trust: subc.get_flag("trust"),
                 }
             } else {
                 return Err(Error::UnknownCommand.into());

@@ -1,7 +1,12 @@
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub(crate) struct Archive {
-    /// Version of this program with which the secret has been generated
+    /// Version of this program with which the secret has been generated.
     pub version: String,
+
+    /// Unique ID of this archive.
+    pub uid: String,
+    /// The actual share of the secret.
+    pub share: Share,
 
     /// This shares name.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -12,9 +17,6 @@ pub(crate) struct Archive {
     /// Some information about the secret.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub info: Option<SecretInfo>,
-
-    /// The actual share of the secret.
-    pub share: Share,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

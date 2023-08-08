@@ -32,6 +32,7 @@ ssss = "0.2.0"
 dialoguer = "0.10.4"
 argon2 = "0.5.1"
 simplecrypt = "1.0.2"
+uuid = { version = "1.4.1", features = ["v4"] }
 
 [dev-dependencies]
 rusty-hook = "0.11.2"

@@ -1,6 +1,6 @@
 use {
     crate::engine::{
-        ShareGenBlueprint,
+        Blueprint,
         SSS,
     },
     anyhow::Result,
@@ -9,7 +9,10 @@ use {
         Command,
         ManualFormat,
     },
-    engine::ShareGenInfo,
+    engine::{
+        BlueprintShare,
+        BlueprintShareEncryption,
+    },
     std::{
         io::Write,
         path::PathBuf,
@@ -47,16 +50,20 @@ async fn main() -> Result<()> {
             reference::build_shell_completion(&out_path, &shell)?;
             Ok(())
         },
-        | Command::Split { secret_data, blueprint } => {
-            let blueprint: ShareGenBlueprint = serde_yaml::from_slice(&blueprint)?;
+        | Command::Split {
+            secret_data,
+            blueprint,
+            trust,
+        } => {
+            let blueprint: Blueprint = serde_yaml::from_slice(&blueprint)?;
             let engine = SSS::new();
-            engine.generate(&secret_data, &blueprint).await?;
+            engine.generate(&secret_data, &blueprint, trust).await?;
             Ok(())
         },
         | Command::InteractiveSplit { secret_data } => {
             let threshold: usize = dialoguer::Input::new().with_prompt("Enter threshold").interact()?;
             println!("");
-            let mut blueprint = ShareGenBlueprint {
+            let mut blueprint = Blueprint {
                 threshold,
                 generate: Vec::<_>::new(),
             };
@@ -72,7 +79,7 @@ async fn main() -> Result<()> {
             }
 
             let engine = SSS::new();
-            engine.generate(&secret_data, &blueprint).await?;
+            engine.generate(&secret_data, &blueprint, false).await?;
 
             Ok(())
         },
@@ -85,7 +92,7 @@ async fn main() -> Result<()> {
     }
 }
 
-async fn ask_for_share_data() -> Result<ShareGenInfo> {
+async fn ask_for_share_data() -> Result<BlueprintShare> {
     let path: String = dialoguer::Input::new().with_prompt("Save to file").interact()?;
 
     let with_name = dialoguer::Confirm::new()
@@ -119,11 +126,15 @@ async fn ask_for_share_data() -> Result<ShareGenInfo> {
         None
     };
 
-    Ok(ShareGenInfo {
+    Ok(BlueprintShare {
         name,
         path,
-        password,
-        info: with_secret_info,
+        encrypt: if let Some(p) = password {
+            Some(BlueprintShareEncryption::Plain(p))
+        } else {
+            None
+        },
+        info: Some(with_secret_info),
         comment,
     })
 }
