@@ -12,4 +12,8 @@ pub(crate) enum Error {
     NoTrust,
     #[error("unknown version {0}")]
     UnknownVersion(String),
+    #[error("shell {0}")]
+    Shell(String),
+    #[error("non interactive")]
+    NonInteractive,
 }

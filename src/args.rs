@@ -64,6 +64,9 @@ pub(crate) enum Command {
     InteractiveRestoreSecret {
         shares: Vec<(String, Vec<u8>)>,
     },
+    RestoreSecret {
+        shares: Vec<(String, Vec<u8>)>,
+    },
 }
 
 pub(crate) struct ClapArgumentLoader {}
@@ -106,59 +109,55 @@ impl ClapArgumentLoader {
                     ),
             )
             .subcommand(
-                clap::Command::new("interactive")
-                    .subcommand_required(true)
-                    .alias("int")
-                    .subcommand(
-                        clap::Command::new("split").about("Split a secret.").arg(
-                            clap::Arg::new("secret")
-                                .long("secret")
-                                .short('s')
-                                .help("Path to the file containing the secret.")
-                                .required(true),
-                        ),
+                clap::Command::new("split")
+                    .about("Split a secret.")
+                    .arg(
+                        clap::Arg::new("interactive")
+                            .long("interactive")
+                            .short('i')
+                            .help("Interactive mode.")
+                            .num_args(0)
+                            .conflicts_with_all(["blueprint"]),
                     )
-                    .subcommand(
-                        clap::Command::new("restore")
-                            .about("Restores a secret from shares.")
-                            .arg(
-                                clap::Arg::new("share")
-                                    .long("share")
-                                    .short('s')
-                                    .help("Path to a share file.")
-                                    .required(true)
-                                    .action(ArgAction::Append),
-                            ),
+                    .arg(
+                        clap::Arg::new("secret")
+                            .long("secret")
+                            .short('s')
+                            .help("Path to the file containing the secret.")
+                            .required(true),
+                    )
+                    .arg(
+                        clap::Arg::new("blueprint")
+                            .long("blueprint")
+                            .short('b')
+                            .help("Path to the blueprint file.")
+                            .required(true),
+                    )
+                    .arg(
+                        clap::Arg::new("trust")
+                            .long("trust")
+                            .short('t')
+                            .help("Allow shell invocations from blueprint scripts.")
+                            .num_args(0),
                     ),
             )
             .subcommand(
-                clap::Command::new("headless")
-                    .subcommand_required(true)
-                    .alias("hl")
-                    .subcommand(
-                        clap::Command::new("split")
-                            .about("Split a secret.")
-                            .arg(
-                                clap::Arg::new("secret")
-                                    .long("secret")
-                                    .short('s')
-                                    .help("Path to the file containing the secret.")
-                                    .required(true),
-                            )
-                            .arg(
-                                clap::Arg::new("blueprint")
-                                    .long("blueprint")
-                                    .short('b')
-                                    .help("Path to the blueprint file.")
-                                    .required(true),
-                            )
-                            .arg(
-                                clap::Arg::new("trust")
-                                    .long("trust")
-                                    .short('t')
-                                    .help("Allow shell invocations from blueprint scripts.")
-                                    .num_args(0),
-                            ),
+                clap::Command::new("restore")
+                    .about("Restores a secret from shares.")
+                    .arg(
+                        clap::Arg::new("share")
+                            .long("share")
+                            .short('s')
+                            .help("Path to a share file.")
+                            .required(true)
+                            .action(ArgAction::Append),
+                    )
+                    .arg(
+                        clap::Arg::new("interactive")
+                            .long("interactive")
+                            .short('i')
+                            .help("Interactive mode.")
+                            .num_args(0),
                     ),
             )
     }
@@ -186,31 +185,29 @@ impl ClapArgumentLoader {
                 path: subc.get_one::<String>("out").unwrap().into(),
                 shell: clap_complete::Shell::from_str(subc.get_one::<String>("shell").unwrap().as_str()).unwrap(),
             }
-        } else if let Some(subc) = command.subcommand_matches("interactive") {
-            if let Some(subc) = subc.subcommand_matches("split") {
+        } else if let Some(subc) = command.subcommand_matches("split") {
+            if subc.get_flag("interactive") {
                 Command::InteractiveSplit {
                     secret_data: fs::read(subc.get_one::<String>("secret").unwrap())?,
                 }
-            } else if let Some(subc) = subc.subcommand_matches("restore") {
-                Command::InteractiveRestoreSecret {
-                    shares: subc
-                        .get_many::<String>("share")
-                        .unwrap()
-                        .map(|v| (v.clone(), fs::read(v).unwrap()))
-                        .collect_vec(),
-                }
             } else {
-                return Err(Error::UnknownCommand.into());
-            }
-        } else if let Some(subc) = command.subcommand_matches("headless") {
-            if let Some(subc) = subc.subcommand_matches("split") {
                 Command::Split {
                     secret_data: fs::read(subc.get_one::<String>("secret").unwrap())?,
                     blueprint: fs::read(subc.get_one::<String>("blueprint").unwrap())?,
                     trust: subc.get_flag("trust"),
                 }
+            }
+        } else if let Some(subc) = command.subcommand_matches("restore") {
+            let shares_args = subc.get_many::<String>("share").unwrap();
+            let mut shares = Vec::<(String, Vec<u8>)>::new();
+            for s in shares_args {
+                shares.push((s.to_owned(), fs::read(s)?));
+            }
+
+            if subc.get_flag("interactive") {
+                Command::InteractiveRestoreSecret { shares }
             } else {
-                return Err(Error::UnknownCommand.into());
+                Command::RestoreSecret { shares }
             }
         } else {
             return Err(Error::UnknownCommand.into());

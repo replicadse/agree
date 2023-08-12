@@ -3,7 +3,6 @@ generate:
   - path: ./test/alice.share
   - path: ./test/bob.share
     name: bob
-    encrypt: !plain example-bob
     info: true
     comment: boosker
   - path: ./test/charlie.share

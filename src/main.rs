@@ -86,7 +86,13 @@ async fn main() -> Result<()> {
         },
         | Command::InteractiveRestoreSecret { shares } => {
             let engine = SSS::new();
-            let secret = engine.restore(&shares).await?;
+            let secret = engine.restore(&shares, true).await?;
+            std::io::stdout().write_all(&secret)?;
+            Ok(())
+        },
+        | Command::RestoreSecret { shares } => {
+            let engine = SSS::new();
+            let secret = engine.restore(&shares, false).await?;
             std::io::stdout().write_all(&secret)?;
             Ok(())
         },
@@ -138,4 +144,58 @@ async fn ask_for_share_data() -> Result<BlueprintShare> {
         info: Some(with_secret_info),
         comment,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use {
+        crate::{
+            archive::{
+                split_version_and_data,
+                VERSION_0_1,
+            },
+            error::Error,
+        },
+        anyhow::Result,
+        std::{
+            fs,
+            process::Command,
+        },
+    };
+
+    fn exec(command: &str) -> Result<String> {
+        let output = Command::new("sh").arg("-c").arg(command).output()?;
+        if output.status.code().unwrap() != 0 {
+            return Err(Error::Shell(String::from_utf8(output.stderr)?).into());
+        }
+        Ok(String::from_utf8(output.stdout)?)
+    }
+
+    #[test]
+    fn headless_split() {
+        exec("cargo run -- split -b ./test/blueprint.yaml -s LICENSE --trust").unwrap();
+        let alice = fs::read("./test/alice.share").unwrap();
+        let bob = fs::read("./test/bob.share").unwrap();
+        let charlie = fs::read("./test/charlie.share").unwrap();
+
+        assert_ne!(alice, bob);
+        assert_ne!(alice, charlie);
+        assert_ne!(bob, charlie);
+
+        let alice_v = split_version_and_data(&alice).unwrap().0;
+        let bob_v = split_version_and_data(&bob).unwrap().0;
+        let charlie_v = split_version_and_data(&charlie).unwrap().0;
+
+        assert_eq!(alice_v, VERSION_0_1);
+        assert_eq!(bob_v, VERSION_0_1);
+        assert_eq!(charlie_v, VERSION_0_1);
+    }
+
+    #[test]
+    fn restore() {
+        exec("cargo run -- split -b ./test/blueprint.yaml -s LICENSE --trust").unwrap();
+        let out = exec("cargo run -- restore -s ./test/alice.share -s ./test/bob.share").unwrap();
+
+        assert_eq!(out, fs::read_to_string("LICENSE").unwrap());
+    }
 }

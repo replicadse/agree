@@ -99,7 +99,7 @@ impl<'x> SSS<'x> {
         Ok(())
     }
 
-    pub async fn restore(&self, shares: &Vec<(String, Vec<u8>)>) -> Result<Vec<u8>> {
+    pub async fn restore(&self, shares: &Vec<(String, Vec<u8>)>, interactive: bool) -> Result<Vec<u8>> {
         let mut share_data = Vec::<String>::new();
         for s in shares {
             let version_data = archive::split_version_and_data(&s.1)?;
@@ -110,6 +110,9 @@ impl<'x> SSS<'x> {
                     let data = match archive.share {
                         | Share::PlainBase64(v) => STANDARD.decode(v)?,
                         | Share::EncryptedBase64 { hash, data } => {
+                            if !interactive {
+                                return Err(Error::NonInteractive.into());
+                            }
                             let pw: String = dialoguer::Password::new()
                                 .with_prompt(format!(
                                     "Enter password for share (path: {}, name: {})",
