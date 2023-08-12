@@ -16,7 +16,7 @@ default = []
 
 [dependencies]
 async-trait = "0.1.72"
-tokio = { version = "1.29.1", features = ["rt", "rt-multi-thread", "macros"] }
+tokio = { version = "1.30.0", features = ["rt", "rt-multi-thread", "macros"] }
 clap = "4.3.19"
 clap_complete = "4.3.2"
 clap_mangen = "0.2.12"
