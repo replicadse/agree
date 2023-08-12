@@ -151,8 +151,8 @@ mod tests {
     use {
         crate::{
             archive::{
-                split_version_and_data,
-                VERSION_0_1,
+                split_revision_and_data,
+                REVISION_0,
             },
             error::Error,
         },
@@ -182,13 +182,13 @@ mod tests {
         assert_ne!(alice, charlie);
         assert_ne!(bob, charlie);
 
-        let alice_v = split_version_and_data(&alice).unwrap().0;
-        let bob_v = split_version_and_data(&bob).unwrap().0;
-        let charlie_v = split_version_and_data(&charlie).unwrap().0;
+        let alice_v = split_revision_and_data(&alice).unwrap().0;
+        let bob_v = split_revision_and_data(&bob).unwrap().0;
+        let charlie_v = split_revision_and_data(&charlie).unwrap().0;
 
-        assert_eq!(alice_v, VERSION_0_1);
-        assert_eq!(bob_v, VERSION_0_1);
-        assert_eq!(charlie_v, VERSION_0_1);
+        assert_eq!(alice_v, REVISION_0);
+        assert_eq!(bob_v, REVISION_0);
+        assert_eq!(charlie_v, REVISION_0);
     }
 
     #[test]

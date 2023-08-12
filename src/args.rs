@@ -5,7 +5,6 @@ use {
         Arg,
         ArgAction,
     },
-    itertools::Itertools,
     std::{
         fs,
         str::FromStr,

@@ -1,12 +1,12 @@
 use anyhow::Result;
 
-pub const VERSION_ID_LEN: usize = 36;
-pub const VERSION_0_1: &'static str = "9f1e0683-7655-4f73-940a-38fa580b5725";
+pub const REVISION_LEN: usize = 36;
+pub const REVISION_0: &'static str = "9f1e0683-7655-4f73-940a-38fa580b5725";
 
-pub fn split_version_and_data(data: &Vec<u8>) -> Result<(String, &[u8])> {
+pub fn split_revision_and_data(data: &Vec<u8>) -> Result<(String, &[u8])> {
     Ok((
-        String::from_utf8(data[0..VERSION_ID_LEN].to_vec())?,
-        &data[VERSION_ID_LEN..],
+        String::from_utf8(data[0..REVISION_LEN].to_vec())?,
+        &data[REVISION_LEN..],
     ))
 }
 

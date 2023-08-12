@@ -6,7 +6,7 @@ use {
             Hash,
             SecretInfo,
             Share,
-            VERSION_0_1,
+            REVISION_0,
         },
         blueprint::Blueprint,
         error::Error,
@@ -94,7 +94,7 @@ impl<'x> SSS<'x> {
             };
             let share_data_str = STANDARD.encode(serde_yaml::to_string(&share_data)?);
 
-            fs::write(&z.0.path, format!("{}{}", VERSION_0_1, share_data_str))?;
+            fs::write(&z.0.path, format!("{}{}", REVISION_0, share_data_str))?;
         }
         Ok(())
     }
@@ -102,11 +102,11 @@ impl<'x> SSS<'x> {
     pub async fn restore(&self, shares: &Vec<(String, Vec<u8>)>, interactive: bool) -> Result<Vec<u8>> {
         let mut share_data = Vec::<String>::new();
         for s in shares {
-            let version_data = archive::split_version_and_data(&s.1)?;
-            match version_data.0.as_str() {
-                | VERSION_0_1 => {
+            let revision_and_data = archive::split_revision_and_data(&s.1)?;
+            match revision_and_data.0.as_str() {
+                | REVISION_0 => {
                     let archive =
-                        serde_yaml::from_str::<Archive>(&String::from_utf8(STANDARD.decode(&version_data.1)?)?)?;
+                        serde_yaml::from_str::<Archive>(&String::from_utf8(STANDARD.decode(&revision_and_data.1)?)?)?;
                     let data = match archive.share {
                         | Share::PlainBase64(v) => STANDARD.decode(v)?,
                         | Share::EncryptedBase64 { hash, data } => {
@@ -134,7 +134,7 @@ impl<'x> SSS<'x> {
                     };
                     share_data.push(String::from_utf8(data)?);
                 },
-                | v => Err(Error::UnknownVersion(v.to_owned()))?,
+                | v => Err(Error::UnknownRevision(v.to_owned()))?,
             }
         }
 
