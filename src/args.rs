@@ -72,7 +72,7 @@ impl ClapArgumentLoader {
     pub(crate) fn root_command() -> clap::Command {
         clap::Command::new("agree")
             .version(env!("CARGO_PKG_VERSION"))
-            .about("A makefile alternative / task runner.")
+            .about("A multi-key-turn encryption/decryption CLI implementing shamirs secret sharing.")
             .author("Alexander Weber <alexanderh.weber@outlook.com>")
             .propagate_version(true)
             .subcommand_required(true)
