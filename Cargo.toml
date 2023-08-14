@@ -15,7 +15,7 @@ readme = "docs/README.md"
 default = []
 
 [dependencies]
-async-trait = "0.1.72"
+async-trait = "0.1.73"
 tokio = { version = "1.30.0", features = ["rt", "rt-multi-thread", "macros"] }
 clap = "4.3.21"
 clap_complete = "4.3.2"
