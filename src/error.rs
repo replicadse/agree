@@ -4,6 +4,8 @@ pub(crate) enum Error {
     Argument(String),
     #[error("unknown command")]
     UnknownCommand,
+    #[error("version mismatch: expected {0}, got {1}")]
+    VersionMismatch(String, String),
     #[error("password verification")]
     PasswordVerification,
     #[error("password provider")]
@@ -16,4 +18,6 @@ pub(crate) enum Error {
     Shell(String),
     #[error("non interactive")]
     NonInteractive,
+    #[error("parser error: {0}")]
+    ParserError(String),
 }
