@@ -1,7 +1,7 @@
 use {
     crate::{
         archive,
-        archive::{
+        archive::v0::{
             Archive,
             Hash,
             SecretInfo,
@@ -102,7 +102,7 @@ impl<'x> SSS<'x> {
     pub async fn restore(&self, shares: &Vec<(String, Vec<u8>)>, interactive: bool) -> Result<Vec<u8>> {
         let mut share_data = Vec::<String>::new();
         for s in shares {
-            let revision_and_data = archive::split_revision_and_data(&s.1)?;
+            let revision_and_data = archive::v0::split_revision_and_data(&s.1)?;
             match revision_and_data.0.as_str() {
                 | REVISION_0 => {
                     let archive =
@@ -139,5 +139,15 @@ impl<'x> SSS<'x> {
         }
 
         Ok(ssss::unlock(share_data.as_slice())?)
+    }
+
+    pub async fn info(&self, share: &Vec<u8>) -> Result<Archive> {
+        let revision_and_data = archive::v0::split_revision_and_data(&share)?;
+        match revision_and_data.0.as_str() {
+            | REVISION_0 => {
+                Ok(serde_yaml::from_str::<Archive>(&String::from_utf8(STANDARD.decode(&revision_and_data.1)?)?)?)
+            },
+            | v => Err(Error::UnknownRevision(v.to_owned()))?,
+        }
     }
 }

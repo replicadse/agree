@@ -30,7 +30,7 @@ impl CallArgs {
         }
 
         match &self.command {
-            // | Command::Plan { .. } => Err(Box::new(Error::ExperimentalCommand)),
+            | Command::Info { .. } => Err(Error::Experimental("info".to_owned()).into()),
             | _ => Ok(()),
         }
     }
@@ -65,6 +65,9 @@ pub(crate) enum Command {
     },
     RestoreSecret {
         shares: Vec<(String, Vec<u8>)>,
+    },
+    Info {
+        share: (String, Vec<u8>),
     },
 }
 
@@ -159,6 +162,18 @@ impl ClapArgumentLoader {
                             .num_args(0),
                     ),
             )
+            .subcommand(
+                clap::Command::new("info")
+                    .about("Display information about a share.")
+                    .arg(
+                        clap::Arg::new("share")
+                            .long("share")
+                            .short('s')
+                            .help("Path to a share file.")
+                            .required(true)
+                            .action(ArgAction::Append),
+                    ),
+            )
     }
 
     pub(crate) fn load() -> Result<CallArgs> {
@@ -207,6 +222,11 @@ impl ClapArgumentLoader {
                 Command::InteractiveRestoreSecret { shares }
             } else {
                 Command::RestoreSecret { shares }
+            }
+        } else if let Some(subc) = command.subcommand_matches("info") {
+            let shares_args = subc.get_one::<String>("share").unwrap();
+            Command::Info {
+                share: (shares_args.to_owned(), fs::read(shares_args)?),
             }
         } else {
             return Err(Error::UnknownCommand.into());

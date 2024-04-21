@@ -8,6 +8,11 @@
 `agree` is **unstable**.\
 Version semantics: `^([0-9]+\.[0-9]+\.[0-9]+)(-(alpha|beta)\.[0-9]+)?$`.
 
+### Backwards compatibility
+
+Withing one major version (starting from the first stable release v1.0), there will be full backwards compatibility according to the semantic versioning standard. Note that in order to keep flexibility for development, newer major versions might not be able to work with old format / version archives. Use and install the according version in order to use those. Archives revisions (and their associated program version) can be inspected using the `info` command, assuming you use a version that is the same or newer than the one that was used to create the archive.\
+__Note__: Prior to the first major version release (v1), backwards compatibility will only be guaranteed in the same minor version.
+
 ## Example
 
 ### Split a secret into _n_ shares (interactive)
@@ -62,7 +67,7 @@ The same result can be achieved using the interactive mode:
 agree split -i -s Cargo.toml
 ```
 
-## Share composition
+## Share composition and versions
 
 In all version, bytes `[0..36)` are reserved for the version ID of the archive.\
 In the following schematics, only the data from index `[36..]` is used and shifted left to index `0` for convenience.
@@ -71,6 +76,11 @@ In the following schematics, only the data from index `[36..]` is used and shift
 1f2c6a6d-f711-4378-97b9-5f9e2f9f4271kldmf209fm0f944fwef98syf23f9h2fneuf2efhux...
 ^     --  -- VERSION ID --  --     ^ DATA =>
 ```
+
+### Note on good usage
+
+If you use this software to generate archives that are mission critical or contain anything you really want to be able to restore, you should not solely rely on the persistence of GitHub or crates.io. It is highly recommended to either fork the version of this software or store its binaries with the shares at some point. This way, even if the ecosystem is compromised, the software is no longer maintained or distributed or in similar cases, you will still be able to access your data assuming the shares can be used (/ decrypted with the correct password).\
+For mission critical information, you should _always_ have contingency plans and never rely on single point of failures.
 
 ### v0.1
 

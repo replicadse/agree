@@ -114,6 +114,12 @@ async fn main() -> Result<()> {
             std::io::stdout().write_all(&secret)?;
             Ok(())
         },
+        | Command::Info { share } => {
+            let engine = SSS::new();
+            let info = engine.info(&share.1).await?;
+            println!("{}", serde_yaml::to_string(&info).unwrap());
+            Ok(())
+        },
     }
 }
 
@@ -168,7 +174,7 @@ async fn ask_for_share_data() -> Result<BlueprintShare> {
 mod tests {
     use {
         crate::{
-            archive::{
+            archive::v0::{
                 split_revision_and_data,
                 REVISION_0,
             },
