@@ -1,11 +1,18 @@
 use anyhow::Result;
-pub const REVISION_0: &'static str = "9f1e0683-7655-4f73-940a-38fa580b5725";
+use base64::{Engine, engine::general_purpose::STANDARD};
 
-pub fn split_revision_and_data(data: &Vec<u8>) -> Result<(String, &[u8])> {
-    Ok((
-        String::from_utf8(data[0..super::REVISION_LEN].to_vec())?,
-        &data[super::REVISION_LEN..],
-    ))
+use crate::error::Error;
+
+pub fn split_version_and_data(data: &Vec<u8>) -> Result<(String, &[u8])> {
+    assert_eq!(data[0], b'#');
+    assert_eq!(data[1], b'v');
+    let mut version = String::new();
+    let mut i = 2;
+    while data[i] != b'#' {
+        version.push(data[i] as char);
+        i += 1;
+    }
+    Ok((version, &data[i+1..]))
 }
 
 /// The archive that describes the single file storaing all information.
@@ -17,6 +24,13 @@ pub(crate) struct Archive {
     /// The actual share of the secret.
     pub share: Share,
 
+    /// Share information
+    pub info: ArchiveInfo,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct ArchiveInfo {
     /// This shares name.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -25,7 +39,7 @@ pub(crate) struct Archive {
     pub comment: Option<String>,
     /// Some information about the secret.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub info: Option<SecretInfo>,
+    pub secret: Option<SecretInfo>,
 }
 
 // Describing an individual share.
@@ -33,9 +47,35 @@ pub(crate) struct Archive {
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub(crate) enum Share {
     /// Plain base64 encoded share data.
-    PlainBase64(String),
+    Plain(DataRepresentation),
     /// Symmetrically encrypted, base64 encoded share data.
-    EncryptedBase64 { hash: Hash, data: String },
+    Encrypted { hash: Hash, data: DataRepresentation },
+}
+
+// Describing an individual share.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub(crate) enum DataRepresentation {
+    /// Plain base64 encoded share data.
+    Plain(String),
+    /// Symmetrically encrypted, base64 encoded share data.
+    Base64(String),
+}
+
+impl DataRepresentation {
+    pub fn base64(v: Vec<u8>) -> Self {
+        Self::Base64(STANDARD.encode(v))
+    }
+
+    pub fn decode(&self) -> Result<String> {
+        match self {
+            | DataRepresentation::Plain(v) => Ok(v.clone()),
+            | DataRepresentation::Base64(v) => match STANDARD.decode(v) {
+                | Ok(v) => Ok(String::from_utf8(v).unwrap()),
+                | Err(_) => Err(Error::Decoding("base64".to_owned()).into()),
+            }
+        }
+    }
 }
 
 /// Describes the hash algorithm and value that is used for password

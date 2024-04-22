@@ -1,41 +1,32 @@
 use {
     crate::{
-        archive,
-        archive::v0::{
-            Archive,
-            Hash,
-            SecretInfo,
-            Share,
-            REVISION_0,
+        archive::{
+            self, Archive, ArchiveInfo, DataRepresentation, Hash, SecretInfo, Share
         },
         blueprint::Blueprint,
         error::Error,
-    },
-    anyhow::Result,
-    argon2::{
+    }, anyhow::Result, argon2::{
         password_hash::rand_core::{
             OsRng,
             RngCore,
         },
         PasswordHasher,
         PasswordVerifier,
-    },
-    base64::{
+    }, base64::{
         engine::general_purpose::STANDARD,
         Engine,
-    },
-    ssss::SsssConfig,
-    std::fs,
-    uuid::Uuid,
+    }, ssss::SsssConfig, std::fs, uuid::Uuid
 };
 
 pub(crate) struct SSS<'x> {
+    pub version: String,
     pub argon: argon2::Argon2<'x>,
 }
 
 impl<'x> SSS<'x> {
-    pub fn new() -> Self {
+    pub fn new(version: String) -> Self {
         Self {
+            version,
             argon: argon2::Argon2::new(
                 argon2::Algorithm::Argon2id,
                 argon2::Version::V0x13,
@@ -56,16 +47,6 @@ impl<'x> SSS<'x> {
         for z in blueprint.generate.iter().zip(shares) {
             let share_data = Archive {
                 uid: Uuid::new_v4().hyphenated().to_string(),
-                name: z.0.name.clone(),
-                comment: z.0.comment.clone(),
-                info: if z.0.info.unwrap_or(false) {
-                    Some(SecretInfo {
-                        num_shares: blueprint.generate.len(),
-                        threshold: blueprint.threshold,
-                    })
-                } else {
-                    None
-                },
                 share: match &z.0.encrypt {
                     | Some(enc) => {
                         let mut salt = [0u8; 32];
@@ -81,20 +62,31 @@ impl<'x> SSS<'x> {
                             .serialize()
                             .to_string();
 
-                        Share::EncryptedBase64 {
-                            data: STANDARD.encode(simplecrypt::encrypt(z.1.as_bytes(), pass.as_bytes())),
+                        Share::Encrypted {
+                            data: DataRepresentation::base64(simplecrypt::encrypt(z.1.as_bytes(), pass.as_bytes())),
                             hash: Hash::Argon2id(hash),
                         }
                     },
                     | None => {
-                        let encoded_share = STANDARD.encode(z.1);
-                        Share::PlainBase64(encoded_share)
+                        Share::Plain(DataRepresentation::base64(z.1.into_bytes()))
                     },
                 },
+                info: ArchiveInfo {
+                    name: z.0.name.clone(),
+                    comment: z.0.comment.clone(),
+                    secret: if z.0.info.unwrap_or(false) {
+                        Some(SecretInfo {
+                            num_shares: blueprint.generate.len(),
+                            threshold: blueprint.threshold,
+                        })
+                    } else {
+                        None
+                    },
+                }
             };
-            let share_data_str = STANDARD.encode(serde_yaml::to_string(&share_data)?);
+            let share_data_str = STANDARD.encode(serde_json::to_string(&share_data)?);
 
-            fs::write(&z.0.path, format!("{}{}", REVISION_0, share_data_str))?;
+            fs::write(&z.0.path, format!("#v{}#{}", self.version, share_data_str))?;
         }
         Ok(())
     }
@@ -102,52 +94,49 @@ impl<'x> SSS<'x> {
     pub async fn restore(&self, shares: &Vec<(String, Vec<u8>)>, interactive: bool) -> Result<Vec<u8>> {
         let mut share_data = Vec::<String>::new();
         for s in shares {
-            let revision_and_data = archive::v0::split_revision_and_data(&s.1)?;
-            match revision_and_data.0.as_str() {
-                | REVISION_0 => {
-                    let archive =
-                        serde_yaml::from_str::<Archive>(&String::from_utf8(STANDARD.decode(&revision_and_data.1)?)?)?;
-                    let data = match archive.share {
-                        | Share::PlainBase64(v) => STANDARD.decode(v)?,
-                        | Share::EncryptedBase64 { hash, data } => {
-                            if !interactive {
-                                return Err(Error::NonInteractive.into());
-                            }
-                            let pw: String = dialoguer::Password::new()
-                                .with_prompt(format!(
-                                    "Enter password for share (path: {}, name: {})",
-                                    &s.0,
-                                    archive.name.unwrap_or("{unknown}".to_owned())
-                                ))
-                                .interact()?;
-                            match hash {
-                                | Hash::Argon2id(v) => {
-                                    let pw_hash = argon2::PasswordHash::new(&v).or(Err(Error::PasswordVerification))?;
-                                    self.argon
-                                        .verify_password(pw.as_bytes(), &pw_hash)
-                                        .or(Err(Error::PasswordVerification))?;
-                                },
-                            }
-                            let data_dec = STANDARD.decode(data)?;
-                            simplecrypt::decrypt(data_dec.as_slice(), pw.as_bytes())?
-                        },
-                    };
-                    share_data.push(String::from_utf8(data)?);
-                },
-                | v => Err(Error::UnknownRevision(v.to_owned()))?,
+            let revision_and_data = archive::split_version_and_data(&s.1)?;
+            if &revision_and_data.0 != &self.version {
+                return Err(Error::VersionMismatch(self.version.to_owned(), revision_and_data.0).into());
             }
+            let archive = serde_json::from_str::<Archive>(&String::from_utf8(STANDARD.decode(&revision_and_data.1)?)?)?;
+            let data = match archive.share {
+                | Share::Plain(v) => v.decode()?,
+                | Share::Encrypted { hash, data } => {
+                    if !interactive {
+                        return Err(Error::NonInteractive.into());
+                    }
+                    let pw: String = dialoguer::Password::new()
+                        .with_prompt(format!(
+                            "Enter password for share (path: {}, name: {})",
+                            &s.0,
+                            archive.info.name.unwrap_or("{unknown}".to_owned())
+                        ))
+                        .interact()?;
+                    match hash {
+                        | Hash::Argon2id(v) => {
+                            let pw_hash = argon2::PasswordHash::new(&v).or(Err(Error::PasswordVerification))?;
+                            self.argon
+                                .verify_password(pw.as_bytes(), &pw_hash)
+                                .or(Err(Error::PasswordVerification))?;
+                        },
+                    }
+
+                    String::from_utf8(simplecrypt::decrypt(data.decode()?.as_bytes(), pw.as_bytes())?).unwrap()
+                },
+            };
+            share_data.push(data);
         }
 
         Ok(ssss::unlock(share_data.as_slice())?)
     }
 
     pub async fn info(&self, share: &Vec<u8>) -> Result<Archive> {
-        let revision_and_data = archive::v0::split_revision_and_data(&share)?;
-        match revision_and_data.0.as_str() {
-            | REVISION_0 => {
-                Ok(serde_yaml::from_str::<Archive>(&String::from_utf8(STANDARD.decode(&revision_and_data.1)?)?)?)
-            },
-            | v => Err(Error::UnknownRevision(v.to_owned()))?,
+        let revision_and_data = archive::split_version_and_data(&share)?;
+        if &revision_and_data.0 != &self.version {
+            return Err(Error::VersionMismatch(self.version.to_owned(), revision_and_data.0).into());
         }
+        Ok(serde_json::from_str::<Archive>(&String::from_utf8(
+            STANDARD.decode(&revision_and_data.1)?,
+        )?)?)
     }
 }

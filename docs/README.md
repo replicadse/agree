@@ -69,20 +69,35 @@ agree split -i -s Cargo.toml
 
 ## Share composition and versions
 
-In all version, bytes `[0..36)` are reserved for the version ID of the archive.\
+### Note on good usage
+
+If you use this software to generate archives that are mission critical or contain anything you really want to be able to restore, you should not solely rely on the persistence of GitHub or crates.io. It is highly recommended to either fork the version of this software or store its binaries with the shares at some point. This way, even if the ecosystem is compromised, the software is no longer maintained or distributed or in similar cases, you will still be able to access your data assuming the shares can be used (/ decrypted with the correct password).\
+For mission critical information, you should _always_ have contingency plans and never rely on single point of failures.
+
+### v0.2
+
+`v0.2` encodes the version of the binary used to generate the share in the beginning of the share. The file starts with `#v0.2#`, a representation of the major and minor version of the software that was used to generate the share. Following this information is a `base64` encoded `json` object, containing the actual share information. If the share data is encrypted with a password, a symmetric encryption algorithm with the following attributes is used (from the crate `simplecrypt v 1.0.2`):
+
+```
+/// |index  |usage|
+/// |-------|-----|
+/// |0 - 15 |salt |
+/// |16 - 39|nonce|
+/// |40 - 55|mac  |
+/// |56 -   |data |
+```
+
+The password to the data is hashed via `argon2`. The hashed password is stored alongside the encrypted data to easily identify wrong passwords when the data is decrypted.
+
+### v0.1
+
+Bytes `[0..36)` are reserved for the version ID of the archive.\
 In the following schematics, only the data from index `[36..]` is used and shifted left to index `0` for convenience.
 
 ```
 1f2c6a6d-f711-4378-97b9-5f9e2f9f4271kldmf209fm0f944fwef98syf23f9h2fneuf2efhux...
 ^     --  -- VERSION ID --  --     ^ DATA =>
 ```
-
-### Note on good usage
-
-If you use this software to generate archives that are mission critical or contain anything you really want to be able to restore, you should not solely rely on the persistence of GitHub or crates.io. It is highly recommended to either fork the version of this software or store its binaries with the shares at some point. This way, even if the ecosystem is compromised, the software is no longer maintained or distributed or in similar cases, you will still be able to access your data assuming the shares can be used (/ decrypted with the correct password).\
-For mission critical information, you should _always_ have contingency plans and never rely on single point of failures.
-
-### v0.1
 
 `v0.1` is a yaml base64 encoded YAML file. The share information can be store either in plain text or can be protected with a password. The share data is always base64 encoded when stored in the YAML field.\
 If encrypted with a password, a symmetric encryption algorithm with the following attributes is used (from the crate `simplecrypt v 1.0.2`):

@@ -2,22 +2,17 @@ use {
     crate::{
         blueprint::Blueprint,
         engine::SSS,
-    },
-    anyhow::Result,
-    args::{
+    }, anyhow::Result, args::{
         ClapArgumentLoader,
         Command,
         ManualFormat,
-    },
-    blueprint::{
+    }, blueprint::{
         BlueprintShare,
         BlueprintShareEncryption,
-    },
-    fancy_regex::Regex,
-    std::{
+    }, fancy_regex::Regex, itertools::Itertools, std::{
         io::Write,
         path::PathBuf,
-    },
+    }
 };
 
 pub(crate) mod archive;
@@ -26,6 +21,10 @@ pub(crate) mod blueprint;
 pub(crate) mod engine;
 pub(crate) mod error;
 pub(crate) mod reference;
+
+fn get_version() -> String {
+    env!("CARGO_PKG_VERSION").split(".").take(2).join(".").to_owned()
+}
 
 #[forbid(unsafe_code)]
 #[tokio::main]
@@ -64,7 +63,7 @@ async fn main() -> Result<()> {
             let version_check: WithVersion = serde_yaml::from_slice(&blueprint)?;
             let version_regex = Regex::new("^([0-9]+)\\.([0-9]+)$")?;
             if !version_regex.is_match(&version_check.version)? {
-                return Err(error::Error::ParserError(format!("invalid version: {}", version_check.version)).into());
+                return Err(error::Error::Parser(format!("invalid version: {}", version_check.version)).into());
             }
             let expected_version = env!("CARGO_PKG_VERSION").split(".").collect::<Vec<_>>()[..2].join(".");
             if env!("CARGO_PKG_VERSION") != "0.0.0" {
@@ -75,7 +74,7 @@ async fn main() -> Result<()> {
             }
 
             let blueprint: Blueprint = serde_yaml::from_slice(&blueprint)?;
-            let engine = SSS::new();
+            let engine = SSS::new(get_version());
             engine.generate(&secret_data, &blueprint, trust).await?;
             Ok(())
         },
@@ -97,27 +96,27 @@ async fn main() -> Result<()> {
                 println!("");
             }
 
-            let engine = SSS::new();
+            let engine = SSS::new(get_version());
             engine.generate(&secret_data, &blueprint, false).await?;
 
             Ok(())
         },
         | Command::InteractiveRestoreSecret { shares } => {
-            let engine = SSS::new();
+            let engine = SSS::new(get_version());
             let secret = engine.restore(&shares, true).await?;
             std::io::stdout().write_all(&secret)?;
             Ok(())
         },
         | Command::RestoreSecret { shares } => {
-            let engine = SSS::new();
+            let engine = SSS::new(get_version());
             let secret = engine.restore(&shares, false).await?;
             std::io::stdout().write_all(&secret)?;
             Ok(())
         },
         | Command::Info { share } => {
-            let engine = SSS::new();
+            let engine = SSS::new(get_version());
             let info = engine.info(&share.1).await?;
-            println!("{}", serde_yaml::to_string(&info).unwrap());
+            println!("{}", serde_json::to_string(&info).unwrap());
             Ok(())
         },
     }
@@ -174,10 +173,7 @@ async fn ask_for_share_data() -> Result<BlueprintShare> {
 mod tests {
     use {
         crate::{
-            archive::v0::{
-                split_revision_and_data,
-                REVISION_0,
-            },
+            archive::split_version_and_data,
             error::Error,
         },
         anyhow::Result,
@@ -198,6 +194,7 @@ mod tests {
     #[test]
     fn headless_split() {
         exec("cargo run -- split -b ./test/blueprint.yaml -s LICENSE --trust").unwrap();
+
         let alice = fs::read("./test/alice.share").unwrap();
         let bob = fs::read("./test/bob.share").unwrap();
         let charlie = fs::read("./test/charlie.share").unwrap();
@@ -206,13 +203,13 @@ mod tests {
         assert_ne!(alice, charlie);
         assert_ne!(bob, charlie);
 
-        let alice_v = split_revision_and_data(&alice).unwrap().0;
-        let bob_v = split_revision_and_data(&bob).unwrap().0;
-        let charlie_v = split_revision_and_data(&charlie).unwrap().0;
+        let alice_v = split_version_and_data(&alice).unwrap().0;
+        let bob_v = split_version_and_data(&bob).unwrap().0;
+        let charlie_v = split_version_and_data(&charlie).unwrap().0;
 
-        assert_eq!(alice_v, REVISION_0);
-        assert_eq!(bob_v, REVISION_0);
-        assert_eq!(charlie_v, REVISION_0);
+        assert_eq!(alice_v, super::get_version());
+        assert_eq!(bob_v, super::get_version());
+        assert_eq!(charlie_v, super::get_version());
     }
 
     #[test]

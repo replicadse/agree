@@ -14,12 +14,14 @@ pub(crate) enum Error {
     PasswordProvider,
     #[error("no trust")]
     NoTrust,
-    #[error("unknown revision {0}")]
-    UnknownRevision(String),
-    #[error("shell {0}")]
-    Shell(String),
     #[error("non interactive")]
     NonInteractive,
     #[error("parser error: {0}")]
-    ParserError(String),
+    Parser(String),
+    #[error("decoding error: {0}")]
+    Decoding(String),
+
+    #[cfg(test)]
+    #[error("shell {0}")]
+    Shell(String),
 }
