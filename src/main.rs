@@ -87,7 +87,49 @@ async fn main() -> Result<()> {
             };
             loop {
                 println!("--- Entering share information ---");
-                blueprint.generate.push(ask_for_share_data().await?);
+
+                let path: String = dialoguer::Input::new().with_prompt("Save to file").interact()?;
+                let with_name = dialoguer::Confirm::new()
+                    .with_prompt("Include name in share?")
+                    .interact()?;
+                let name: Option<String> = if with_name {
+                    Some(dialoguer::Input::new().with_prompt("Name").interact()?)
+                } else {
+                    None
+                };
+                let with_secret_info = dialoguer::Confirm::new()
+                    .with_prompt("Include secret info (num shares / threshold) in share?")
+                    .interact()?;
+
+                let with_comment = dialoguer::Confirm::new()
+                    .with_prompt("Add comment to share?")
+                    .interact()?;
+                let comment: Option<String> = if with_comment {
+                    Some(dialoguer::Input::new().with_prompt("Comment").interact()?)
+                } else {
+                    None
+                };
+                let with_encryption = dialoguer::Confirm::new()
+                    .with_prompt("Encrypt share data with password?")
+                    .interact()?;
+                let password: Option<String> = if with_encryption {
+                    Some(dialoguer::Password::new().with_prompt("Enter password").interact()?)
+                } else {
+                    None
+                };
+                let bp = BlueprintShare {
+                    name,
+                    path,
+                    encrypt: if let Some(p) = password {
+                        Some(BlueprintShareEncryption::Plain(p))
+                    } else {
+                        None
+                    },
+                    info: Some(with_secret_info),
+                    comment,
+                };
+                
+                blueprint.generate.push(bp);
                 println!("--- --- ---");
                 println!("");
                 if !dialoguer::Confirm::new().with_prompt("Add another share?").interact()? {
@@ -120,53 +162,6 @@ async fn main() -> Result<()> {
             Ok(())
         },
     }
-}
-
-async fn ask_for_share_data() -> Result<BlueprintShare> {
-    let path: String = dialoguer::Input::new().with_prompt("Save to file").interact()?;
-
-    let with_name = dialoguer::Confirm::new()
-        .with_prompt("Include name in share?")
-        .interact()?;
-    let name: Option<String> = if with_name {
-        Some(dialoguer::Input::new().with_prompt("Name").interact()?)
-    } else {
-        None
-    };
-
-    let with_secret_info = dialoguer::Confirm::new()
-        .with_prompt("Include secret info (num shares / threshold) in share?")
-        .interact()?;
-
-    let with_comment = dialoguer::Confirm::new()
-        .with_prompt("Add comment to share?")
-        .interact()?;
-    let comment: Option<String> = if with_comment {
-        Some(dialoguer::Input::new().with_prompt("Comment").interact()?)
-    } else {
-        None
-    };
-
-    let with_encryption = dialoguer::Confirm::new()
-        .with_prompt("Encrypt share data with password?")
-        .interact()?;
-    let password: Option<String> = if with_encryption {
-        Some(dialoguer::Password::new().with_prompt("Enter password").interact()?)
-    } else {
-        None
-    };
-
-    Ok(BlueprintShare {
-        name,
-        path,
-        encrypt: if let Some(p) = password {
-            Some(BlueprintShareEncryption::Plain(p))
-        } else {
-            None
-        },
-        info: Some(with_secret_info),
-        comment,
-    })
 }
 
 #[cfg(test)]
