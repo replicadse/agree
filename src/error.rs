@@ -20,6 +20,10 @@ pub(crate) enum Error {
     Parser(String),
     #[error("decoding error: {0}")]
     Decoding(String),
+    #[error("mismatched shares")]
+    MismatchedShares,
+    #[error("checksum failed")]
+    ChecksumFailed,
 
     #[cfg(test)]
     #[error("shell {0}")]

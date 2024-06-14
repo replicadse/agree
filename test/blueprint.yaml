@@ -3,9 +3,7 @@ threshold: 2
 generate:
   - path: ./test/alice.share
   - path: ./test/bob.share
-    name: bob
     info: true
-    comment: boosker
+    comment: bobs share
   - path: ./test/charlie.share
-    name: charlie
     encrypt: !shell printf example-charlie

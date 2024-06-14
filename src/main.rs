@@ -89,14 +89,6 @@ async fn main() -> Result<()> {
                 println!("--- Entering share information ---");
 
                 let path: String = dialoguer::Input::new().with_prompt("Save to file").interact()?;
-                let with_name = dialoguer::Confirm::new()
-                    .with_prompt("Include name in share?")
-                    .interact()?;
-                let name: Option<String> = if with_name {
-                    Some(dialoguer::Input::new().with_prompt("Name").interact()?)
-                } else {
-                    None
-                };
                 let with_secret_info = dialoguer::Confirm::new()
                     .with_prompt("Include secret info (num shares / threshold) in share?")
                     .interact()?;
@@ -118,7 +110,6 @@ async fn main() -> Result<()> {
                     None
                 };
                 let bp = BlueprintShare {
-                    name,
                     path,
                     encrypt: if let Some(p) = password {
                         Some(BlueprintShareEncryption::Plain(p))
@@ -167,10 +158,7 @@ async fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use {
-        crate::{
-            archive::split_version_and_data,
-            error::Error,
-        },
+        crate::error::Error,
         anyhow::Result,
         std::{
             fs,
@@ -197,21 +185,14 @@ mod tests {
         assert_ne!(alice, bob);
         assert_ne!(alice, charlie);
         assert_ne!(bob, charlie);
-
-        let alice_v = split_version_and_data(&alice).unwrap().0;
-        let bob_v = split_version_and_data(&bob).unwrap().0;
-        let charlie_v = split_version_and_data(&charlie).unwrap().0;
-
-        assert_eq!(alice_v, super::get_version());
-        assert_eq!(bob_v, super::get_version());
-        assert_eq!(charlie_v, super::get_version());
     }
 
     #[test]
     fn restore() {
-        exec("cargo run -- split -b ./test/blueprint.yaml -s LICENSE --trust").unwrap();
+        exec("cargo run -- split -b ./test/blueprint.yaml -s ./LICENSE --trust").unwrap();
         let out = exec("cargo run -- restore -s ./test/alice.share -s ./test/bob.share").unwrap();
 
+        dbg!(&out);
         assert_eq!(out, fs::read_to_string("LICENSE").unwrap());
     }
 }

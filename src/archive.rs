@@ -3,37 +3,41 @@ use base64::{Engine, engine::general_purpose::STANDARD};
 
 use crate::error::Error;
 
-pub fn split_version_and_data(data: &Vec<u8>) -> Result<(String, &[u8])> {
-    assert_eq!(data[0], b'#');
-    assert_eq!(data[1], b'v');
-    let mut version = String::new();
-    let mut i = 2;
-    while data[i] != b'#' {
-        version.push(data[i] as char);
-        i += 1;
-    }
-    Ok((version, &data[i+1..]))
-}
-
 /// The archive that describes the single file storaing all information.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub(crate) struct Archive {
+    /// Archive version.
+    pub version: String,
     /// Automatically generated unique ID of this archive.
     pub uid: String,
+    /// Process ID.
+    pub pid: String,
+
+    /// Archive data.
+    pub data: String,
+}
+
+/// The archive data.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub(crate) struct ArchiveData {
     /// The actual share of the secret.
     pub share: Share,
+    /// Share information.
+    pub info: ShareInfo,
+}
 
-    /// Share information
-    pub info: ArchiveInfo,
+#[derive(Debug, Clone, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum Checksum {
+    /// Sha-512
+    Sha512(String),
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
-pub struct ArchiveInfo {
-    /// This shares name.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
+pub struct ShareInfo {
     /// Some plain text comment.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
@@ -46,19 +50,15 @@ pub struct ArchiveInfo {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub(crate) enum Share {
-    /// Plain base64 encoded share data.
-    Plain(DataRepresentation),
-    /// Symmetrically encrypted, base64 encoded share data.
-    Encrypted { hash: Hash, data: DataRepresentation },
+    Plain(DataRepresentation, Checksum),
+    Encrypted { pass_hash: Hash, data: DataRepresentation, checksum: Checksum },
 }
 
 // Describing an individual share.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub(crate) enum DataRepresentation {
-    /// Plain base64 encoded share data.
     Plain(String),
-    /// Symmetrically encrypted, base64 encoded share data.
     Base64(String),
 }
 
