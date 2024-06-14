@@ -6,8 +6,6 @@ pub(crate) enum Error {
     Argument(String),
     #[error("unknown command")]
     UnknownCommand,
-    #[error("version mismatch: expected {0}, got {1}")]
-    VersionMismatch(String, String),
     #[error("password verification")]
     PasswordVerification,
     #[error("password provider")]
@@ -16,8 +14,6 @@ pub(crate) enum Error {
     NoTrust,
     #[error("non interactive")]
     NonInteractive,
-    #[error("parser error: {0}")]
-    Parser(String),
     #[error("decoding error: {0}")]
     Decoding(String),
     #[error("mismatched shares")]

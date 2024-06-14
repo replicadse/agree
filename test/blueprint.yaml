@@ -1,4 +1,3 @@
-version: 0.1
 threshold: 2
 generate:
   - path: ./test/alice.share
@@ -6,4 +5,5 @@ generate:
     info: true
     comment: bobs share
   - path: ./test/charlie.share
-    encrypt: !shell printf example-charlie
+    encrypt:
+      shell: "printf example-charlie"

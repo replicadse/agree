@@ -8,6 +8,7 @@ use {
 #[serde(rename_all = "snake_case")]
 pub(crate) struct Blueprint {
     pub threshold: usize,
+    #[serde(with = "serde_yaml::with::singleton_map_recursive")]
     pub generate: Vec<BlueprintShare>,
 }
 

@@ -9,7 +9,7 @@ use {
     }, blueprint::{
         BlueprintShare,
         BlueprintShareEncryption,
-    }, fancy_regex::Regex, itertools::Itertools, std::{
+    }, itertools::Itertools, std::{
         io::Write,
         path::PathBuf,
     }
@@ -56,23 +56,6 @@ async fn main() -> Result<()> {
             blueprint,
             trust,
         } => {
-            #[derive(serde::Deserialize)]
-            struct WithVersion {
-                version: String,
-            }
-            let version_check: WithVersion = serde_yaml::from_slice(&blueprint)?;
-            let version_regex = Regex::new("^([0-9]+)\\.([0-9]+)$")?;
-            if !version_regex.is_match(&version_check.version)? {
-                return Err(error::Error::Parser(format!("invalid version: {}", version_check.version)).into());
-            }
-            let expected_version = env!("CARGO_PKG_VERSION").split(".").collect::<Vec<_>>()[..2].join(".");
-            if env!("CARGO_PKG_VERSION") != "0.0.0" {
-                // local debug
-                if &version_check.version != &expected_version {
-                    return Err(error::Error::VersionMismatch(version_check.version, expected_version).into());
-                }
-            }
-
             let blueprint: Blueprint = serde_yaml::from_slice(&blueprint)?;
             let engine = SSS::new(get_version());
             engine.generate(&secret_data, &blueprint, trust).await?;
