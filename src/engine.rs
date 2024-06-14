@@ -152,8 +152,7 @@ impl<'x> SSS<'x> {
     }
 
     pub async fn info(&self, share: &Vec<u8>) -> Result<Archive> {
-        let archive = serde_json::from_str::<Archive>(&String::from_utf8(share.clone())?)?;
-
+        let archive = serde_json::from_slice::<Archive>(&share)?;
         Ok(archive)
     }
 }

@@ -2,7 +2,7 @@ use {
     crate::{
         blueprint::Blueprint,
         engine::SSS,
-    }, anyhow::Result, args::{
+    }, anyhow::Result, archive::ArchiveData, args::{
         ClapArgumentLoader,
         Command,
         ManualFormat,
@@ -149,7 +149,11 @@ async fn main() -> Result<()> {
         | Command::Info { share } => {
             let engine = SSS::new(get_version());
             let info = engine.info(&share.1).await?;
-            println!("{}", serde_json::to_string(&info).unwrap());
+            println!("Version:\t{}", info.version);
+            println!("UID:\t\t{}", info.uid);
+            println!("PID:\t\t{}", info.pid);
+            let data_decoded = serde_json::from_slice::<ArchiveData>(info.data.decode()?.as_slice())?;
+            println!("Data:\n=== BEGIN DATA ===\n{}\n=== END DATA ===", serde_json::to_string_pretty(&data_decoded)?);
             Ok(())
         },
     }
