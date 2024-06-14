@@ -2,17 +2,25 @@ use {
     crate::{
         blueprint::Blueprint,
         engine::SSS,
-    }, anyhow::Result, archive::ArchiveData, args::{
+    },
+    anyhow::Result,
+    archive::ArchiveData,
+    args::{
         ClapArgumentLoader,
         Command,
         ManualFormat,
-    }, blueprint::{
+        RestoreCommand,
+        SplitCommand,
+    },
+    blueprint::{
         BlueprintShare,
         BlueprintShareEncryption,
-    }, itertools::Itertools, std::{
+    },
+    itertools::Itertools,
+    std::{
         io::Write,
         path::PathBuf,
-    }
+    },
 };
 
 pub(crate) mod archive;
@@ -51,82 +59,87 @@ async fn main() -> Result<()> {
             reference::build_shell_completion(&out_path, &shell)?;
             Ok(())
         },
-        | Command::Split {
-            secret_data,
-            blueprint,
-            trust,
-        } => {
-            let blueprint: Blueprint = serde_yaml::from_slice(&blueprint)?;
-            let engine = SSS::new(get_version());
-            engine.generate(&secret_data, &blueprint, trust).await?;
-            Ok(())
-        },
-        | Command::InteractiveSplit { secret_data } => {
-            let threshold: usize = dialoguer::Input::new().with_prompt("Enter threshold").interact()?;
-            println!("");
-            let mut blueprint = Blueprint {
-                threshold,
-                generate: Vec::<_>::new(),
-            };
-            loop {
-                println!("--- Entering share information ---");
+        | Command::Split(cmd) => {
+            match cmd {
+                | SplitCommand::Auto {
+                    secret_data,
+                    blueprint,
+                    trust,
+                } => {
+                    let blueprint: Blueprint = serde_yaml::from_slice(&blueprint)?;
+                    let engine = SSS::new(get_version());
+                    engine.generate(&secret_data, &blueprint, trust).await?;
+                },
+                | SplitCommand::Interactive { secret_data } => {
+                    let threshold: usize = dialoguer::Input::new().with_prompt("Enter threshold").interact()?;
+                    println!("");
+                    let mut blueprint = Blueprint {
+                        threshold,
+                        generate: Vec::<_>::new(),
+                    };
+                    loop {
+                        println!("--- Entering share information ---");
 
-                let path: String = dialoguer::Input::new().with_prompt("Save to file").interact()?;
-                let with_secret_info = dialoguer::Confirm::new()
-                    .with_prompt("Include secret info (num shares / threshold) in share?")
-                    .interact()?;
+                        let path: String = dialoguer::Input::new().with_prompt("Save to file").interact()?;
+                        let with_secret_info = dialoguer::Confirm::new()
+                            .with_prompt("Include secret info (num shares / threshold) in share?")
+                            .interact()?;
 
-                let with_comment = dialoguer::Confirm::new()
-                    .with_prompt("Add comment to share?")
-                    .interact()?;
-                let comment: Option<String> = if with_comment {
-                    Some(dialoguer::Input::new().with_prompt("Comment").interact()?)
-                } else {
-                    None
-                };
-                let with_encryption = dialoguer::Confirm::new()
-                    .with_prompt("Encrypt share data with password?")
-                    .interact()?;
-                let password: Option<String> = if with_encryption {
-                    Some(dialoguer::Password::new().with_prompt("Enter password").interact()?)
-                } else {
-                    None
-                };
-                let bp = BlueprintShare {
-                    path,
-                    encrypt: if let Some(p) = password {
-                        Some(BlueprintShareEncryption::Plain(p))
-                    } else {
-                        None
-                    },
-                    info: Some(with_secret_info),
-                    comment,
-                };
-                
-                blueprint.generate.push(bp);
-                println!("--- --- ---");
-                println!("");
-                if !dialoguer::Confirm::new().with_prompt("Add another share?").interact()? {
-                    break;
-                }
-                println!("");
+                        let with_comment = dialoguer::Confirm::new()
+                            .with_prompt("Add comment to share?")
+                            .interact()?;
+                        let comment: Option<String> = if with_comment {
+                            Some(dialoguer::Input::new().with_prompt("Comment").interact()?)
+                        } else {
+                            None
+                        };
+                        let with_encryption = dialoguer::Confirm::new()
+                            .with_prompt("Encrypt share data with password?")
+                            .interact()?;
+                        let password: Option<String> = if with_encryption {
+                            Some(dialoguer::Password::new().with_prompt("Enter password").interact()?)
+                        } else {
+                            None
+                        };
+                        let bp = BlueprintShare {
+                            path,
+                            encrypt: if let Some(p) = password {
+                                Some(BlueprintShareEncryption::Plain(p))
+                            } else {
+                                None
+                            },
+                            info: Some(with_secret_info),
+                            comment,
+                        };
+
+                        blueprint.generate.push(bp);
+                        println!("--- --- ---");
+                        println!("");
+                        if !dialoguer::Confirm::new().with_prompt("Add another share?").interact()? {
+                            break;
+                        }
+                        println!("");
+                    }
+
+                    let engine = SSS::new(get_version());
+                    engine.generate(&secret_data, &blueprint, false).await?;
+                },
             }
-
-            let engine = SSS::new(get_version());
-            engine.generate(&secret_data, &blueprint, false).await?;
-
             Ok(())
         },
-        | Command::InteractiveRestoreSecret { shares } => {
-            let engine = SSS::new(get_version());
-            let secret = engine.restore(&shares, true).await?;
-            std::io::stdout().write_all(&secret)?;
-            Ok(())
-        },
-        | Command::RestoreSecret { shares } => {
-            let engine = SSS::new(get_version());
-            let secret = engine.restore(&shares, false).await?;
-            std::io::stdout().write_all(&secret)?;
+        | Command::Restore(cmd) => {
+            match cmd {
+                | RestoreCommand::Auto { shares } => {
+                    let engine = SSS::new(get_version());
+                    let secret = engine.restore(&shares, false).await?;
+                    std::io::stdout().write_all(&secret)?;
+                },
+                | RestoreCommand::Interactive { shares } => {
+                    let engine = SSS::new(get_version());
+                    let secret = engine.restore(&shares, true).await?;
+                    std::io::stdout().write_all(&secret)?;
+                },
+            }
             Ok(())
         },
         | Command::Info { share } => {
@@ -136,7 +149,10 @@ async fn main() -> Result<()> {
             println!("UID:\t\t{}", info.uid);
             println!("PID:\t\t{}", info.pid);
             let data_decoded = serde_json::from_slice::<ArchiveData>(info.data.decode()?.as_slice())?;
-            println!("Data:\n=== BEGIN DATA ===\n{}\n=== END DATA ===", serde_json::to_string_pretty(&data_decoded)?);
+            println!(
+                "Data:\n=== BEGIN DATA ===\n{}\n=== END DATA ===",
+                serde_json::to_string_pretty(&data_decoded)?
+            );
             Ok(())
         },
     }

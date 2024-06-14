@@ -48,7 +48,6 @@ agree split -s Cargo.toml -b blueprint.yaml
 ```
 
 ```yaml
-version: 0.1
 threshold: 2
 generate:
   - path: ./test/alice.share

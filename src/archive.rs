@@ -1,7 +1,11 @@
-use anyhow::Result;
-use base64::{Engine, engine::general_purpose::STANDARD};
-
-use crate::error::Error;
+use {
+    crate::error::Error,
+    anyhow::Result,
+    base64::{
+        engine::general_purpose::STANDARD,
+        Engine,
+    },
+};
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
@@ -66,8 +70,15 @@ pub struct ShareInfo {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub(crate) enum Share {
-    Plain{ data: Base64String, checksum: Checksum },
-    Encrypted { pass_hash: PassHash, data: Base64String, checksum: Checksum },
+    Plain {
+        data: Base64String,
+        checksum: Checksum,
+    },
+    Encrypted {
+        pass_hash: PassHash,
+        data: Base64String,
+        checksum: Checksum,
+    },
 }
 
 /// Describes the hash algorithm and value that is used for password

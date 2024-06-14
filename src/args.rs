@@ -44,31 +44,29 @@ pub(crate) enum ManualFormat {
 
 #[derive(Debug)]
 pub(crate) enum Command {
-    Manual {
-        path: String,
-        format: ManualFormat,
-    },
-    Autocomplete {
-        path: String,
-        shell: clap_complete::Shell,
-    },
-    InteractiveSplit {
-        secret_data: Vec<u8>,
-    },
-    Split {
+    Manual { path: String, format: ManualFormat },
+    Autocomplete { path: String, shell: clap_complete::Shell },
+    Split(SplitCommand),
+    Restore(RestoreCommand),
+    Info { share: (String, Vec<u8>) },
+}
+
+#[derive(Debug)]
+pub(crate) enum SplitCommand {
+    Auto {
         secret_data: Vec<u8>,
         blueprint: Vec<u8>,
         trust: bool,
     },
-    InteractiveRestoreSecret {
-        shares: Vec<(String, Vec<u8>)>,
+    Interactive {
+        secret_data: Vec<u8>,
     },
-    RestoreSecret {
-        shares: Vec<(String, Vec<u8>)>,
-    },
-    Info {
-        share: (String, Vec<u8>),
-    },
+}
+
+#[derive(Debug)]
+pub(crate) enum RestoreCommand {
+    Auto { shares: Vec<(String, Vec<u8>)> },
+    Interactive { shares: Vec<(String, Vec<u8>)> },
 }
 
 pub(crate) struct ClapArgumentLoader {}
@@ -201,15 +199,15 @@ impl ClapArgumentLoader {
             }
         } else if let Some(subc) = command.subcommand_matches("split") {
             if subc.get_flag("interactive") {
-                Command::InteractiveSplit {
+                Command::Split(SplitCommand::Interactive {
                     secret_data: fs::read(subc.get_one::<String>("secret").unwrap())?,
-                }
+                })
             } else {
-                Command::Split {
+                Command::Split(SplitCommand::Auto {
                     secret_data: fs::read(subc.get_one::<String>("secret").unwrap())?,
                     blueprint: fs::read(subc.get_one::<String>("blueprint").unwrap())?,
                     trust: subc.get_flag("trust"),
-                }
+                })
             }
         } else if let Some(subc) = command.subcommand_matches("restore") {
             let shares_args = subc.get_many::<String>("share").unwrap();
@@ -219,9 +217,9 @@ impl ClapArgumentLoader {
             }
 
             if subc.get_flag("interactive") {
-                Command::InteractiveRestoreSecret { shares }
+                Command::Restore(RestoreCommand::Interactive { shares })
             } else {
-                Command::RestoreSecret { shares }
+                Command::Restore(RestoreCommand::Auto { shares })
             }
         } else if let Some(subc) = command.subcommand_matches("info") {
             let shares_args = subc.get_one::<String>("share").unwrap();

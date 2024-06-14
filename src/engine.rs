@@ -1,18 +1,34 @@
 use {
     crate::{
         archive::{
-            Archive, ArchiveData, Base64String, Checksum, PassHash, SecretInfo, Share, ShareInfo
+            Archive,
+            ArchiveData,
+            Base64String,
+            Checksum,
+            PassHash,
+            SecretInfo,
+            Share,
+            ShareInfo,
         },
         blueprint::Blueprint,
         error::Error,
-    }, anyhow::Result, argon2::{
+    },
+    anyhow::Result,
+    argon2::{
         password_hash::rand_core::{
             OsRng,
             RngCore,
         },
         PasswordHasher,
         PasswordVerifier,
-    }, sha2::Digest, ssss::SsssConfig, std::{collections::HashSet, fs}, uuid::Uuid
+    },
+    sha2::Digest,
+    ssss::SsssConfig,
+    std::{
+        collections::HashSet,
+        fs,
+    },
+    uuid::Uuid,
 };
 
 pub(crate) struct SSS<'x> {
@@ -50,44 +66,50 @@ impl<'x> SSS<'x> {
                 version: self.version.clone(),
                 uid: Uuid::new_v4().hyphenated().to_string(),
                 pid: pid.clone(),
-                data: Base64String::new(serde_json::to_string(&ArchiveData {
-                    share: match &z.0.encrypt {
-                        | Some(enc) => {
-                            let mut salt = [0u8; 32];
-                            OsRng::default().fill_bytes(&mut salt);
-                            let pass = enc.exec(trust)?;
-                            let hash = self
-                                .argon
-                                .hash_password(
-                                    pass.as_bytes(),
-                                    argon2::password_hash::SaltString::encode_b64(&salt).unwrap().as_salt(),
-                                )
-                                .unwrap()
-                                .serialize()
-                                .to_string();
-    
-                            Share::Encrypted {
-                                data: Base64String::new(simplecrypt::encrypt(z.1.as_bytes(), pass.as_bytes())),
-                                pass_hash: PassHash::Argon2id(hash),
-                                checksum: Checksum::Sha512(checksum.clone()),
-                            }
+                data: Base64String::new(
+                    serde_json::to_string(&ArchiveData {
+                        share: match &z.0.encrypt {
+                            | Some(enc) => {
+                                let mut salt = [0u8; 32];
+                                OsRng::default().fill_bytes(&mut salt);
+                                let pass = enc.exec(trust)?;
+                                let hash = self
+                                    .argon
+                                    .hash_password(
+                                        pass.as_bytes(),
+                                        argon2::password_hash::SaltString::encode_b64(&salt).unwrap().as_salt(),
+                                    )
+                                    .unwrap()
+                                    .serialize()
+                                    .to_string();
+
+                                Share::Encrypted {
+                                    data: Base64String::new(simplecrypt::encrypt(z.1.as_bytes(), pass.as_bytes())),
+                                    pass_hash: PassHash::Argon2id(hash),
+                                    checksum: Checksum::Sha512(checksum.clone()),
+                                }
+                            },
+                            | None => {
+                                Share::Plain {
+                                    data: Base64String::new(z.1),
+                                    checksum: Checksum::Sha512(checksum.clone()),
+                                }
+                            },
                         },
-                        | None => {
-                            Share::Plain{ data: Base64String::new(z.1), checksum: Checksum::Sha512(checksum.clone()) }
+                        info: ShareInfo {
+                            comment: z.0.comment.clone(),
+                            secret: if z.0.info.unwrap_or(false) {
+                                Some(SecretInfo {
+                                    num_shares: blueprint.generate.len(),
+                                    threshold: blueprint.threshold,
+                                })
+                            } else {
+                                None
+                            },
                         },
-                    },
-                    info: ShareInfo {
-                        comment: z.0.comment.clone(),
-                        secret: if z.0.info.unwrap_or(false) {
-                            Some(SecretInfo {
-                                num_shares: blueprint.generate.len(),
-                                threshold: blueprint.threshold,
-                            })
-                        } else {
-                            None
-                        },
-                    }
-                }).unwrap()),
+                    })
+                    .unwrap(),
+                ),
             };
             fs::write(&z.0.path, serde_json::to_string(&archive)?)?;
         }
@@ -103,20 +125,21 @@ impl<'x> SSS<'x> {
             let archive_data = serde_json::from_slice::<ArchiveData>(&archive.data.decode()?)?;
 
             let data = match archive_data.share {
-                | Share::Plain{ data, checksum } => {
+                | Share::Plain { data, checksum } => {
                     ids.insert((archive.pid.clone(), checksum.clone()));
                     data.decode()?
                 },
-                | Share::Encrypted { pass_hash: hash, data , checksum} => {
+                | Share::Encrypted {
+                    pass_hash: hash,
+                    data,
+                    checksum,
+                } => {
                     ids.insert((archive.pid.clone(), checksum.clone()));
                     if !interactive {
                         return Err(Error::NonInteractive.into());
                     }
                     let pw: String = dialoguer::Password::new()
-                        .with_prompt(format!(
-                            "Enter password for share at path: {}",
-                            &s.0,
-                        ))
+                        .with_prompt(format!("Enter password for share at path: {}", &s.0,))
                         .interact()?;
                     match hash {
                         | PassHash::Argon2id(v) => {
