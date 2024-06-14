@@ -76,7 +76,12 @@ For mission critical information, you should _always_ have contingency plans and
 
 ### v0.2
 
-`v0.2` encodes the version of the binary used to generate the share in the beginning of the share. The file starts with `#v0.2#`, a representation of the major and minor version of the software that was used to generate the share. Following this information is a `base64` encoded `json` object, containing the actual share information. If the share data is encrypted with a password, a symmetric encryption algorithm with the following attributes is used (from the crate `simplecrypt v 1.0.2`):
+`v0.2` introduces a versioned `JSON` formatted archive. This archive contains the following information:
+
+* `$.version`: CLI version (`$major.$minor` format) that was used to create the archive
+* `$.uid`: Unique ID of this archive.
+* `$.pid`: Process ID of this archvie (used to make sure only archives that were created together can be used together)
+* `$.data`: `base64` encoded share data
 
 ```
 /// |index  |usage|
@@ -87,7 +92,7 @@ For mission critical information, you should _always_ have contingency plans and
 /// |56 -   |data |
 ```
 
-The password to the data is hashed via `argon2`. The hashed password is stored alongside the encrypted data to easily identify wrong passwords when the data is decrypted.
+The password to the data is hashed via `argon2`. The hashed password is stored alongside the encrypted data to easily identify wrong passwords when the data is decrypted. The share now also contains a checksum to make sure that the restored secret is matching the original one.
 
 ### v0.1
 

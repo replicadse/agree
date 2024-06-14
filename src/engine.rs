@@ -1,7 +1,7 @@
 use {
     crate::{
         archive::{
-            Archive, ArchiveData, Checksum, DataRepresentation, Hash, SecretInfo, Share, ShareInfo
+            Archive, ArchiveData, Base64String, Checksum, PassHash, SecretInfo, Share, ShareInfo
         },
         blueprint::Blueprint,
         error::Error,
@@ -12,9 +12,6 @@ use {
         },
         PasswordHasher,
         PasswordVerifier,
-    }, base64::{
-        engine::general_purpose::STANDARD,
-        Engine,
     }, sha2::Digest, ssss::SsssConfig, std::{collections::HashSet, fs}, uuid::Uuid
 };
 
@@ -53,7 +50,7 @@ impl<'x> SSS<'x> {
                 version: self.version.clone(),
                 uid: Uuid::new_v4().hyphenated().to_string(),
                 pid: pid.clone(),
-                data: STANDARD.encode(serde_json::to_string(&ArchiveData {
+                data: Base64String::new(serde_json::to_string(&ArchiveData {
                     share: match &z.0.encrypt {
                         | Some(enc) => {
                             let mut salt = [0u8; 32];
@@ -70,13 +67,13 @@ impl<'x> SSS<'x> {
                                 .to_string();
     
                             Share::Encrypted {
-                                data: DataRepresentation::base64(simplecrypt::encrypt(z.1.as_bytes(), pass.as_bytes())),
-                                pass_hash: Hash::Argon2id(hash),
+                                data: Base64String::new(simplecrypt::encrypt(z.1.as_bytes(), pass.as_bytes())),
+                                pass_hash: PassHash::Argon2id(hash),
                                 checksum: Checksum::Sha512(checksum.clone()),
                             }
                         },
                         | None => {
-                            Share::Plain(DataRepresentation::base64(z.1.into_bytes()), Checksum::Sha512(checksum.clone()),)
+                            Share::Plain{ data: Base64String::new(z.1), checksum: Checksum::Sha512(checksum.clone()) }
                         },
                     },
                     info: ShareInfo {
@@ -103,14 +100,12 @@ impl<'x> SSS<'x> {
         let mut ids = HashSet::<(String, Checksum)>::new();
         for s in shares {
             let archive = serde_json::from_str::<Archive>(&String::from_utf8(s.1.clone())?)?;
-            let archive_data = serde_json::from_str::<ArchiveData>(&String::from_utf8(
-                STANDARD.decode(&archive.data.as_bytes())?,
-            )?)?;
+            let archive_data = serde_json::from_slice::<ArchiveData>(&archive.data.decode()?)?;
 
             let data = match archive_data.share {
-                | Share::Plain(v, checksum) => {
+                | Share::Plain{ data, checksum } => {
                     ids.insert((archive.pid.clone(), checksum.clone()));
-                    v.decode()?
+                    data.decode()?
                 },
                 | Share::Encrypted { pass_hash: hash, data , checksum} => {
                     ids.insert((archive.pid.clone(), checksum.clone()));
@@ -124,7 +119,7 @@ impl<'x> SSS<'x> {
                         ))
                         .interact()?;
                     match hash {
-                        | Hash::Argon2id(v) => {
+                        | PassHash::Argon2id(v) => {
                             let pw_hash = argon2::PasswordHash::new(&v).or(Err(Error::PasswordVerification))?;
                             self.argon
                                 .verify_password(pw.as_bytes(), &pw_hash)
@@ -132,10 +127,10 @@ impl<'x> SSS<'x> {
                         },
                     }
 
-                    String::from_utf8(simplecrypt::decrypt(data.decode()?.as_bytes(), pw.as_bytes())?).unwrap()
+                    simplecrypt::decrypt(&data.decode()?, pw.as_bytes())?
                 },
             };
-            share_data.push(data);
+            share_data.push(String::from_utf8(data)?);
         }
         if ids.len() != 1 {
             return Err(Error::MismatchedShares.into());
