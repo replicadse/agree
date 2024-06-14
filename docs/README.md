@@ -57,7 +57,8 @@ generate:
     comment: example for bob
   - path: ./test/charlie.share
     name: charlie
-    encrypt: !shell printf example-charlie
+    encrypt: 
+      shell: "printf example-charlie"
 
 ```
 
