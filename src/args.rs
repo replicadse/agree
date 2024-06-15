@@ -12,19 +12,19 @@ use {
 };
 
 #[derive(Debug, Eq, PartialEq)]
-pub(crate) enum Privilege {
+pub enum Privilege {
     Normal,
     Experimental,
 }
 
 #[derive(Debug)]
-pub(crate) struct CallArgs {
+pub struct CallArgs {
     pub privileges: Privilege,
     pub command: Command,
 }
 
 impl CallArgs {
-    pub(crate) fn validate(&self) -> Result<()> {
+    pub fn validate(&self) -> Result<()> {
         if self.privileges == Privilege::Experimental {
             return Ok(());
         }
@@ -38,13 +38,13 @@ impl CallArgs {
 }
 
 #[derive(Debug)]
-pub(crate) enum ManualFormat {
+pub enum ManualFormat {
     Manpages,
     Markdown,
 }
 
 #[derive(Debug)]
-pub(crate) enum Command {
+pub enum Command {
     Manual { path: String, format: ManualFormat },
     Autocomplete { path: String, shell: clap_complete::Shell },
     Split(SplitCommand),
@@ -54,7 +54,7 @@ pub(crate) enum Command {
 }
 
 #[derive(Debug)]
-pub(crate) enum SplitCommand {
+pub enum SplitCommand {
     Auto {
         secret_data: Vec<u8>,
         blueprint: Vec<u8>,
@@ -66,15 +66,15 @@ pub(crate) enum SplitCommand {
 }
 
 #[derive(Debug)]
-pub(crate) enum RestoreCommand {
+pub enum RestoreCommand {
     Auto { shares: Vec<(String, Vec<u8>)> },
     Interactive { shares: Vec<(String, Vec<u8>)> },
 }
 
-pub(crate) struct ClapArgumentLoader {}
+pub struct ClapArgumentLoader {}
 
 impl ClapArgumentLoader {
-    pub(crate) fn root_command() -> clap::Command {
+    pub fn root_command() -> clap::Command {
         clap::Command::new("agree")
             .version(env!("CARGO_PKG_VERSION"))
             .about("A multi-key-turn encryption/decryption CLI implementing shamirs secret sharing.")
@@ -188,7 +188,7 @@ impl ClapArgumentLoader {
             )
     }
 
-    pub(crate) fn load() -> Result<CallArgs> {
+    pub fn load() -> Result<CallArgs> {
         let command = Self::root_command().get_matches();
 
         let privileges = if command.get_flag("experimental") {

@@ -26,7 +26,7 @@ impl Base64String {
 /// The archive that describes the single file storaing all information.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
-pub(crate) struct Archive {
+pub struct Archive {
     /// Archive version.
     pub version: String,
     /// Unique ID.
@@ -41,7 +41,7 @@ pub(crate) struct Archive {
 /// The archive data.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
-pub(crate) struct ArchiveData {
+pub struct ArchiveData {
     /// The actual share of the secret.
     pub share: Share,
     /// Share information.
@@ -69,7 +69,7 @@ pub struct ShareInfo {
 // Describing an individual share.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
-pub(crate) enum Share {
+pub enum Share {
     Plain {
         data: Base64String,
         checksum: Checksum,
@@ -85,7 +85,7 @@ pub(crate) enum Share {
 /// verification.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
-pub(crate) enum PassHash {
+pub enum PassHash {
     /// Argon2id hash.
     Argon2id(String),
 }
@@ -94,7 +94,7 @@ pub(crate) enum PassHash {
 /// how to restore.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
-pub(crate) struct SecretInfo {
+pub struct SecretInfo {
     /// The amount of shares that were generated for the secret.
     pub num_shares: usize,
     /// The amount of shares that are needed for restoring the secret.

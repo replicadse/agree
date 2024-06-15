@@ -31,7 +31,7 @@ use {
     uuid::Uuid,
 };
 
-pub(crate) struct SSS<'x> {
+pub struct SSS<'x> {
     pub version: String,
     pub argon: argon2::Argon2<'x>,
 }

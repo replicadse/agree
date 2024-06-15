@@ -16,12 +16,12 @@ use {
     }
 };
 
-pub(crate) mod archive;
-pub(crate) mod args;
-pub(crate) mod blueprint;
-pub(crate) mod engine;
-pub(crate) mod error;
-pub(crate) mod reference;
+pub mod archive;
+pub mod args;
+pub mod blueprint;
+pub mod engine;
+pub mod error;
+pub mod reference;
 
 fn get_version() -> String {
     env!("CARGO_PKG_VERSION").split(".").take(2).join(".").to_owned()

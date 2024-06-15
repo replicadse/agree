@@ -1,5 +1,5 @@
 #[derive(Debug, thiserror::Error)]
-pub(crate) enum Error {
+pub enum Error {
     #[error("experimental: {0}")]
     Experimental(String),
     #[error("argument: {0}")]

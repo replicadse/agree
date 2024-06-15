@@ -6,7 +6,7 @@ use {
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub(crate) struct Blueprint {
+pub struct Blueprint {
     pub threshold: usize,
     #[serde(with = "serde_yaml::with::singleton_map_recursive")]
     pub generate: Vec<BlueprintShare>,
@@ -14,7 +14,7 @@ pub(crate) struct Blueprint {
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
-pub(crate) struct BlueprintShare {
+pub struct BlueprintShare {
     pub path: String,
     pub encrypt: Option<BlueprintShareEncryption>,
     pub comment: Option<String>,
@@ -23,7 +23,7 @@ pub(crate) struct BlueprintShare {
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
-pub(crate) enum BlueprintShareEncryption {
+pub enum BlueprintShareEncryption {
     Plain(String),
     Shell(String),
 }
