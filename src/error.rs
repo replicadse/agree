@@ -20,6 +20,8 @@ pub(crate) enum Error {
     MismatchedShares,
     #[error("checksum failed")]
     ChecksumFailed,
+    #[error("password mismatch")]
+    PasswordMismatch,
 
     #[cfg(test)]
     #[error("shell {0}")]

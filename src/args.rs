@@ -31,6 +31,7 @@ impl CallArgs {
 
         match &self.command {
             | Command::Info { .. } => Err(Error::Experimental("info".to_owned()).into()),
+            | Command::Edit { .. } => Err(Error::Experimental("edit".to_owned()).into()),
             | _ => Ok(()),
         }
     }
@@ -49,6 +50,7 @@ pub(crate) enum Command {
     Split(SplitCommand),
     Restore(RestoreCommand),
     Info { share: (String, Vec<u8>) },
+    Edit { share: (String, Vec<u8>) },
 }
 
 #[derive(Debug)]
@@ -172,6 +174,18 @@ impl ClapArgumentLoader {
                             .action(ArgAction::Append),
                     ),
             )
+            .subcommand(
+                clap::Command::new("edit")
+                    .about("Edit the share.")
+                    .arg(
+                        clap::Arg::new("share")
+                            .long("share")
+                            .short('s')
+                            .help("Path to a share file.")
+                            .required(true)
+                            .action(ArgAction::Append),
+                    ),
+            )
     }
 
     pub(crate) fn load() -> Result<CallArgs> {
@@ -224,6 +238,11 @@ impl ClapArgumentLoader {
         } else if let Some(subc) = command.subcommand_matches("info") {
             let shares_args = subc.get_one::<String>("share").unwrap();
             Command::Info {
+                share: (shares_args.to_owned(), fs::read(shares_args)?),
+            }
+        } else if let Some(subc) = command.subcommand_matches("edit") {
+            let shares_args = subc.get_one::<String>("share").unwrap();
+            Command::Edit {
                 share: (shares_args.to_owned(), fs::read(shares_args)?),
             }
         } else {

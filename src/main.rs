@@ -2,25 +2,18 @@ use {
     crate::{
         blueprint::Blueprint,
         engine::SSS,
-    },
-    anyhow::Result,
-    archive::ArchiveData,
-    args::{
+    }, anyhow::Result, archive::{ArchiveData, Base64String, Share}, args::{
         ClapArgumentLoader,
         Command,
         ManualFormat,
         RestoreCommand,
         SplitCommand,
-    },
-    blueprint::{
+    }, blueprint::{
         BlueprintShare,
         BlueprintShareEncryption,
-    },
-    itertools::Itertools,
-    std::{
-        io::Write,
-        path::PathBuf,
-    },
+    }, error::Error, itertools::Itertools, std::{
+        fs, io::Write, path::PathBuf
+    }
 };
 
 pub(crate) mod archive;
@@ -97,7 +90,17 @@ async fn main() -> Result<()> {
                             .with_prompt("Encrypt share data with password?")
                             .interact()?;
                         let password: Option<String> = if with_encryption {
-                            Some(dialoguer::Password::new().with_prompt("Enter password").interact()?)
+                            let pw: String = dialoguer::Password::new()
+                                .with_prompt("Enter password for share".to_owned())
+                                .interact()?;
+                            let pw_confirm: String = dialoguer::Password::new()
+                                .with_prompt("Enter password for confirmation".to_owned())
+                                .interact()?;
+                            if pw != pw_confirm {
+                                return Err(Error::PasswordMismatch.into());
+                            }
+
+                            Some(pw)
                         } else {
                             None
                         };
@@ -153,6 +156,53 @@ async fn main() -> Result<()> {
                 "Data:\n=== BEGIN DATA ===\n{}\n=== END DATA ===",
                 serde_json::to_string_pretty(&data_decoded)?
             );
+            Ok(())
+        },
+        | Command::Edit { share } => {
+            let engine = SSS::new(get_version());
+            
+            let mut archive = engine.info(&share.1).await?;
+            let mut archive_data = serde_json::from_slice::<ArchiveData>(archive.data.decode()?.as_slice())?;
+            let share_data = match archive_data.share {
+                | Share::Plain { data, checksum } => (data.decode()?, checksum),
+                | Share::Encrypted { data, pass_hash, checksum } => {
+                    (engine.unlock_i(data, &pass_hash)?, checksum)
+                },
+            };
+
+            let with_encryption = dialoguer::Confirm::new()
+                .with_prompt("Encrypt share data with password?")
+                .interact()?;
+            let password: Option<String> = if with_encryption {
+                let pw: String = dialoguer::Password::new()
+                    .with_prompt("Enter password for share".to_owned())
+                    .interact()?;
+                let pw_confirm: String = dialoguer::Password::new()
+                    .with_prompt("Enter password for confirmation".to_owned())
+                    .interact()?;
+                if pw != pw_confirm {
+                    return Err(Error::PasswordMismatch.into());
+                }
+
+                Some(pw)
+            } else {
+                None
+            };
+
+            archive_data.share = match password {
+                | Some(p) => {
+                    engine.lock(&share_data.0, &BlueprintShareEncryption::Plain(p), share_data.1, false)?
+                },
+                | None => {
+                    Share::Plain {
+                        data: Base64String::new(share_data.0),
+                        checksum: share_data.1,
+                    }
+                },
+            };
+            archive.data = Base64String::new(serde_json::to_string(&archive_data)?);
+            fs::write(&share.0, serde_json::to_string(&archive)?)?;
+
             Ok(())
         },
     }

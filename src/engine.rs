@@ -10,7 +10,7 @@ use {
             Share,
             ShareInfo,
         },
-        blueprint::Blueprint,
+        blueprint::{Blueprint, BlueprintShareEncryption},
         error::Error,
     },
     anyhow::Result,
@@ -70,24 +70,7 @@ impl<'x> SSS<'x> {
                     serde_json::to_string(&ArchiveData {
                         share: match &z.0.encrypt {
                             | Some(enc) => {
-                                let mut salt = [0u8; 32];
-                                OsRng::default().fill_bytes(&mut salt);
-                                let pass = enc.exec(trust)?;
-                                let hash = self
-                                    .argon
-                                    .hash_password(
-                                        pass.as_bytes(),
-                                        argon2::password_hash::SaltString::encode_b64(&salt).unwrap().as_salt(),
-                                    )
-                                    .unwrap()
-                                    .serialize()
-                                    .to_string();
-
-                                Share::Encrypted {
-                                    data: Base64String::new(simplecrypt::encrypt(z.1.as_bytes(), pass.as_bytes())),
-                                    pass_hash: PassHash::Argon2id(hash),
-                                    checksum: Checksum::Sha512(checksum.clone()),
-                                }
+                                self.lock(&secret_data, enc, Checksum::Sha512(checksum.clone()), trust)?
                             },
                             | None => {
                                 Share::Plain {
@@ -130,7 +113,7 @@ impl<'x> SSS<'x> {
                     data.decode()?
                 },
                 | Share::Encrypted {
-                    pass_hash: hash,
+                    pass_hash,
                     data,
                     checksum,
                 } => {
@@ -138,19 +121,8 @@ impl<'x> SSS<'x> {
                     if !interactive {
                         return Err(Error::NonInteractive.into());
                     }
-                    let pw: String = dialoguer::Password::new()
-                        .with_prompt(format!("Enter password for share at path: {}", &s.0,))
-                        .interact()?;
-                    match hash {
-                        | PassHash::Argon2id(v) => {
-                            let pw_hash = argon2::PasswordHash::new(&v).or(Err(Error::PasswordVerification))?;
-                            self.argon
-                                .verify_password(pw.as_bytes(), &pw_hash)
-                                .or(Err(Error::PasswordVerification))?;
-                        },
-                    }
-
-                    simplecrypt::decrypt(&data.decode()?, pw.as_bytes())?
+                    
+                    self.unlock_i(data, &pass_hash)?
                 },
             };
             share_data.push(String::from_utf8(data)?);
@@ -172,6 +144,43 @@ impl<'x> SSS<'x> {
             },
         }
         Ok(res)
+    }
+
+    pub fn lock(&self, secret: &Vec<u8>, enc: &BlueprintShareEncryption, checksum: Checksum, trust: bool) -> Result<Share> {
+        let mut salt = [0u8; 32];
+        OsRng::default().fill_bytes(&mut salt);
+        let pass = enc.exec(trust)?;
+        let hash = self
+            .argon
+            .hash_password(
+                pass.as_bytes(),
+                argon2::password_hash::SaltString::encode_b64(&salt).unwrap().as_salt(),
+            )
+            .unwrap()
+            .serialize()
+            .to_string();
+
+        Ok(Share::Encrypted {
+            data: Base64String::new(simplecrypt::encrypt(secret.as_slice(), pass.as_bytes())),
+            pass_hash: PassHash::Argon2id(hash),
+            checksum,
+        })
+    }
+
+    pub fn unlock_i(&self, data: Base64String, pass_hash: &PassHash) -> Result<Vec<u8>> {
+        let pw: String = dialoguer::Password::new()
+            .with_prompt("Enter password for share".to_owned())
+            .interact()?;
+
+        match pass_hash {
+            | PassHash::Argon2id(v) => {
+                let pw_hash = argon2::PasswordHash::new(&v).or(Err(Error::PasswordVerification))?;
+                self.argon
+                    .verify_password(pw.as_bytes(), &pw_hash)
+                    .or(Err(Error::PasswordVerification))?;
+                Ok(simplecrypt::decrypt(&data.decode()?, pw.as_bytes())?)
+            },
+        }
     }
 
     pub async fn info(&self, share: &Vec<u8>) -> Result<Archive> {
