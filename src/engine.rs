@@ -10,7 +10,10 @@ use {
             Share,
             ShareInfo,
         },
-        blueprint::{Blueprint, BlueprintShareEncryption},
+        blueprint::{
+            Blueprint,
+            BlueprintShareEncryption,
+        },
         error::Error,
     },
     anyhow::Result,
@@ -69,9 +72,7 @@ impl<'x> SSS<'x> {
                 data: Base64String::new(
                     serde_json::to_string(&ArchiveData {
                         share: match &z.0.encrypt {
-                            | Some(enc) => {
-                                self.lock(&secret_data, enc, Checksum::Sha512(checksum.clone()), trust)?
-                            },
+                            | Some(enc) => self.lock(&secret_data, enc, Checksum::Sha512(checksum.clone()), trust)?,
                             | None => {
                                 Share::Plain {
                                     data: Base64String::new(z.1),
@@ -121,7 +122,7 @@ impl<'x> SSS<'x> {
                     if !interactive {
                         return Err(Error::NonInteractive.into());
                     }
-                    
+
                     self.unlock_i(data, &pass_hash)?
                 },
             };
@@ -146,7 +147,13 @@ impl<'x> SSS<'x> {
         Ok(res)
     }
 
-    pub fn lock(&self, secret: &Vec<u8>, enc: &BlueprintShareEncryption, checksum: Checksum, trust: bool) -> Result<Share> {
+    pub fn lock(
+        &self,
+        secret: &Vec<u8>,
+        enc: &BlueprintShareEncryption,
+        checksum: Checksum,
+        trust: bool,
+    ) -> Result<Share> {
         let mut salt = [0u8; 32];
         OsRng::default().fill_bytes(&mut salt);
         let pass = enc.exec(trust)?;

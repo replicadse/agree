@@ -2,18 +2,31 @@ use {
     crate::{
         blueprint::Blueprint,
         engine::SSS,
-    }, anyhow::Result, archive::{ArchiveData, Base64String, Share}, args::{
+    },
+    anyhow::Result,
+    archive::{
+        ArchiveData,
+        Base64String,
+        Share,
+    },
+    args::{
         ClapArgumentLoader,
         Command,
         ManualFormat,
         RestoreCommand,
         SplitCommand,
-    }, blueprint::{
+    },
+    blueprint::{
         BlueprintShare,
         BlueprintShareEncryption,
-    }, error::Error, itertools::Itertools, std::{
-        fs, io::Write, path::PathBuf
-    }
+    },
+    error::Error,
+    itertools::Itertools,
+    std::{
+        fs,
+        io::Write,
+        path::PathBuf,
+    },
 };
 
 pub mod archive;
@@ -160,14 +173,16 @@ async fn main() -> Result<()> {
         },
         | Command::Edit { share } => {
             let engine = SSS::new(get_version());
-            
+
             let mut archive = engine.info(&share.1).await?;
             let mut archive_data = serde_json::from_slice::<ArchiveData>(archive.data.decode()?.as_slice())?;
             let share_data = match archive_data.share {
                 | Share::Plain { data, checksum } => (data.decode()?, checksum),
-                | Share::Encrypted { data, pass_hash, checksum } => {
-                    (engine.unlock_i(data, &pass_hash)?, checksum)
-                },
+                | Share::Encrypted {
+                    data,
+                    pass_hash,
+                    checksum,
+                } => (engine.unlock_i(data, &pass_hash)?, checksum),
             };
 
             let with_encryption = dialoguer::Confirm::new()
@@ -190,9 +205,7 @@ async fn main() -> Result<()> {
             };
 
             archive_data.share = match password {
-                | Some(p) => {
-                    engine.lock(&share_data.0, &BlueprintShareEncryption::Plain(p), share_data.1, false)?
-                },
+                | Some(p) => engine.lock(&share_data.0, &BlueprintShareEncryption::Plain(p), share_data.1, false)?,
                 | None => {
                     Share::Plain {
                         data: Base64String::new(share_data.0),

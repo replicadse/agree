@@ -175,16 +175,14 @@ impl ClapArgumentLoader {
                     ),
             )
             .subcommand(
-                clap::Command::new("edit")
-                    .about("Edit the share.")
-                    .arg(
-                        clap::Arg::new("share")
-                            .long("share")
-                            .short('s')
-                            .help("Path to a share file.")
-                            .required(true)
-                            .action(ArgAction::Append),
-                    ),
+                clap::Command::new("edit").about("Edit the share.").arg(
+                    clap::Arg::new("share")
+                        .long("share")
+                        .short('s')
+                        .help("Path to a share file.")
+                        .required(true)
+                        .action(ArgAction::Append),
+                ),
             )
     }
 
